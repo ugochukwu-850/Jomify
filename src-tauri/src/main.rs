@@ -4,7 +4,8 @@
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
 fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+    let greeting: String = String::from("Hello");
+    format!("{greeting}, {}! You've been greeted from Rust!", name)
 }
 
 fn main() {

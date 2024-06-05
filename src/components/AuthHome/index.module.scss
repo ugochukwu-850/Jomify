@@ -1,0 +1,121 @@
+.container {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: white;
+    min-height: 100vh;
+    height: max-content;
+    color: black;
+    //overflow-x: hidden;
+    // display layout
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1em;
+    place-content: space-evenly;
+
+    .leftbox {
+        min-width: 360px;
+        width: 45%;
+        display: flex;
+        flex-direction: column;
+        row-gap: 5em;
+
+        margin: auto 12px;
+        place-content: space-between;
+
+        .tandc {
+            text-align: center;
+            font-size: small;
+            margin: auto;
+            color: rgb(102, 96, 96);
+
+            a {
+                text-decoration: none;
+            }
+        }
+
+        img {
+            width: 80%;
+            height: auto;
+            margin: auto;
+        }
+
+        h6 {
+            text-align: center;
+            margin: auto;
+            font-family: Arial, Helvetica, sans-serif;
+
+            span {
+                color: green;
+
+                &:nth-child(2) {
+                    color: red;
+                }
+            }
+        }
+    }
+
+    .rightbox {
+        min-width: 340px;
+        width: 45%;
+        display: flex;
+        flex-direction: column;
+        font-family: Arial, Helvetica, sans-serif;
+
+        h1,
+        h5 {
+            margin: 2rem 0.2rem;
+
+            span {
+                color: green;
+            }
+        }
+
+        h1 {
+            font-size: 5em;
+            font-weight: 800;
+        }
+
+
+
+        .form {
+            padding: 1rem .5rem;
+            margin: 1em;
+            border-radius: 12px;
+
+            input[type=text] {
+                color: white;
+                //outline: 2px solid white;
+
+            }
+        }
+
+
+        .signupbts {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            place-content: space-evenly;
+            padding: 1rem .5rem;
+
+
+            button {
+                width: 100%;
+                text-align: center;
+                margin: auto;
+                margin: 12px;
+
+                &:nth-child(2):hover {
+                    cursor: not-allowed;
+                }
+            }
+
+        }
+    }
+}
+
+.dark {
+    background-color: black;
+    color: white;
+}
