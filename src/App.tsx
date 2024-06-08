@@ -5,17 +5,15 @@ import "@fontsource/roboto/700.css";
 import "./App.scss";
 import AuthPage from "./components/AuthHome/index";
 function App() {
-  if (!IsAuthVerified()) {
-    return (<AuthPage />
- ) }
-
- else {
-  return (<></>)
- }
+  if (IsAuthVerified() === false) {
+    return <AuthPage />;
+  } else {
+    return <></>;
+  }
 }
 
 function IsAuthVerified() {
-  return false;
+  return true;
 }
 
 export default App;

@@ -33,7 +33,8 @@ const AuthPage = () => {
           </Typography>
           <span className={styles.tandc}>
             By Signing Up, you agree to the <a href="#">Terms and Conditions</a>{" "}
-            and <a href="#">Privacy Policy, </a>including <a href="#"> Cookie Use</a>
+            and <a href="#">Privacy Policy, </a>including{" "}
+            <a href="#"> Cookie Use</a>
           </span>
         </Stack>
         <Stack className={`${styles.rightbox}`}>
@@ -82,16 +83,12 @@ const AuthPage = () => {
               variant="outlined"
               startIcon={<SvgIcon component={SpotifyIcon} inheritViewBox />}
               onClick={() => {
-                document.location.href = `https://accounts.spotify.com/authorize?
-              response_type=code&
-              client_id=YOUR_CLIENT_ID&
-              redirect_uri=YOUR_REDIRECT_URI&
-              scope=user-read-private%20user-read-email&
-              state=STATE_STRING
-            `;
+                document.location.href = `/callback`;
               }}
             >
-              <span>Sign Up With <span style={{ color: "green" }}> Spotify</span></span>
+              <span>
+                Sign Up With <span style={{ color: "green" }}> Spotify</span>
+              </span>
             </Button>
             <Button
               variant="outlined"
@@ -100,7 +97,8 @@ const AuthPage = () => {
               }
             >
               <span>
-                Sign Up With  <span style={{ color: "red" }}> Youtube Music</span>
+                Sign Up With{" "}
+                <span style={{ color: "red" }}> Youtube Music</span>
               </span>
             </Button>
           </Box>
