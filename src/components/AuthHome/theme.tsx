@@ -2,6 +2,7 @@ import { Chip, Divider, TextField } from "@mui/material";
 import { styled, createTheme } from "@mui/material/styles";
 
 const WhiteOutlinedTextField = styled(TextField)(({ theme }) => ({
+  
   "& .MuiOutlinedInput-root": {
     "& fieldset": {
       borderColor: "white",
@@ -13,12 +14,17 @@ const WhiteOutlinedTextField = styled(TextField)(({ theme }) => ({
       borderColor: "white",
     },
   },
+  
   "& .MuiInputLabel-root": {
     color: "white",
   },
   "& .MuiInputLabel-root.Mui-focused": {
     color: "white",
   },
+  "& .Mui-focused.MuiFormHelperText-contained": {
+    error: true,
+    color: "white"
+  }
 }));
 const WhiteOutlinedDivider = styled(Divider)(({ theme }) => ({
   "&.MuiDivider-root": {
@@ -34,7 +40,7 @@ const WhiteFilledChip = styled(Chip)(({ theme }) => ({
   border:" 2px solid white"
 }));
 
-const theme = createTheme({
+const customTheme = createTheme({
   palette: {
     primary: {
       main: "#ffffff",
@@ -43,7 +49,7 @@ const theme = createTheme({
 });
 
 export default {
-  theme,
+  customTheme,
   WhiteOutlinedTextField,
   WhiteOutlinedDivider,
   WhiteFilledChip,

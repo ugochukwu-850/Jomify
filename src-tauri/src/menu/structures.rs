@@ -1,6 +1,11 @@
-use anyhow::{anyhow, Result};
-use oauth2::Scope;
+use chrono::Utc;
+use oauth2::{
+    basic::BasicClient, AuthUrl, ClientId, ExtraTokenFields, RedirectUrl, Scope,
+    StandardTokenResponse, TokenResponse, TokenType, TokenUrl,
+};
 use serde::{Deserialize, Serialize};
+
+use super::errors::MyError;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub enum SupportedApps {
@@ -8,63 +13,263 @@ pub enum SupportedApps {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[allow(unused_variables)]
 pub struct SupportedAppsEnpoints {
-    pub authourizationUrl: String,
-    pub tokenUrl: String,
-    pub scopes: Vec<Scope>,
-    pub redirectUrl: String,
-    pub clientId: String,
+    authourization_url: String,
+    token_url: String,
+    redirect_url: String,
+    client_id: String,
+}
+#[derive(Serialize, Debug, Deserialize)]
+#[allow(unused_variables)]
+pub struct UserProfileData {
+    pub display_name: Option<String>,
+    pub email: Option<String>,
+    pub country: Option<String>,
+    pub image_url: Vec<Image>,
+    pub product: String,
+    pub merchant_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SpotifyUser {
+    country: Option<String>,
+    display_name: Option<String>,
+    email: Option<String>,
+    images: Vec<Image>,
+    product: String,
+    id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Image {
+    pub url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Equalizer;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Settings {
+    equalizer: Equalizer,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+
+pub struct AuthCreds {
+    pub access_token: String,
+    pub refresh_token: Option<String>,
+    pub expires_at: i64,
+    pub token_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct User {
+    pub app: SupportedApps,
+    pub settings: Settings,
+    pub profile: UserProfileData,
+    pub meta: MetaInfo,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MetaInfo {
+    pub client_id: String,
+}
+impl User {
+    pub async fn is_authenticated(
+        &self,
+        db: tauri::State<'_, sled::Db>,
+    ) -> Result<bool, MyError> {
+        match self.get_auth_creds(db).await {
+            Ok(_) => Ok(true),
+            Err(e) => Err(e),
+        }
+    }
+    /// Gets the auth creds and refresh them if neccessary
+    pub async fn get_auth_creds(
+        &self,
+        db: tauri::State<'_, sled::Db>,
+    ) -> Result<AuthCreds, MyError> {
+        match self.app {
+            SupportedApps::Spotify => {
+                let app_auth_key = self.app.app_auth_key();
+                match db.get(&app_auth_key)? {
+                    Some(data) => {
+                        let auth_cred: AuthCreds = serde_json::from_slice(&data)?;
+                        let auth_cred = self.refresh(auth_cred).await?;
+                        db.insert(&app_auth_key, &*serde_json::to_string(&auth_cred)?)?;
+                        Ok(auth_cred)
+                    }
+                    None => Err(anyhow::anyhow!("No key for current app in database"))?,
+                }
+            }
+        }
+    }
+    async fn refresh(&self, creds: AuthCreds) -> Result<AuthCreds, anyhow::Error> {
+        match self.app {
+            SupportedApps::Spotify => {
+                if creds.expires_at > chrono::Utc::now().timestamp() {
+                    return Ok(creds);
+                }
+
+                let client = reqwest::Client::new();
+                let uri = self
+                    .app
+                    .generate_endpoints(Some(self.meta.client_id.to_owned()));
+                let params = [
+                    ("refresh_token", creds.refresh_token.unwrap()),
+                    ("client_id", self.meta.client_id.to_owned()),
+                ];
+
+                let res = client
+                    .post(uri.token_url)
+                    .form(&params)
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .send()
+                    .await;
+
+                match res {
+                    Ok(response) => {
+                        let response = response.text().await?;
+                        let auth_creds: AuthCreds = serde_json::from_str(&response)?;
+                        return Ok(auth_creds);
+                    }
+                    Err(e) => Err(anyhow::anyhow!(format!(
+                        "An error occured while making the refresh request: {:?}",
+                        e
+                    ))),
+                }
+            }
+        }
+    }
 }
 
 impl SupportedApps {
+    pub fn app_auth_key(&self) -> String {
+        match self {
+            SupportedApps::Spotify => {
+                format!("{}_auth_creds", self.name())
+            }
+        }
+    }
+
+    pub fn generate_basic_oauth_client(
+        &self,
+        client_id: Option<String>,
+    ) -> anyhow::Result<BasicClient> {
+        let app_endpoints = self.generate_endpoints(client_id);
+        Ok(BasicClient::new(
+            ClientId::new(app_endpoints.client_id.to_owned()),
+            None,
+            AuthUrl::new(app_endpoints.authourization_url)?,
+            Some(TokenUrl::new(app_endpoints.token_url)?),
+        )
+        .set_redirect_uri(RedirectUrl::new(app_endpoints.redirect_url)?))
+    }
+    pub fn scopes(&self) -> Vec<Scope> {
+        match self {
+            Self::Spotify => vec![
+                "user-read-private".to_string(),
+                "user-read-email".to_string(),
+            ]
+            .into_iter()
+            .map(|f| Scope::new(f))
+            .collect(),
+        }
+    }
     fn generate_endpoints(&self, client_id: Option<String>) -> SupportedAppsEnpoints {
         match self {
             Self::Spotify => SupportedAppsEnpoints {
-                authourizationUrl: "https://accounts.spotify.com/authorize".to_string(),
-                tokenUrl: "https://accounts.spotify.com/token".to_string(),
-                scopes: vec![
-                    "user-read-private".to_string(),
-                    "user-read-email".to_string(),
-                ]
-                .into_iter()
-                .map(|f| Scope::new(f))
-                .collect(),
-                redirectUrl: "http://localhost:1420/callback".to_string(),
-                clientId: client_id.unwrap_or_else(|| {self.get_default_client_id()}),
+                authourization_url: "https://accounts.spotify.com/authorize".to_string(),
+                token_url: "https://accounts.spotify.com/api/token".to_string(),
+                redirect_url: "http://localhost:1420/callback".to_string(),
+                client_id: client_id.unwrap_or_else(|| self.get_default_client_id()),
             },
         }
     }
 
-        pub fn from_name(name: String) -> Result<Self> {
-            match name.as_str() {
-                "spotify" => {
-                    Ok(SupportedApps::Spotify)
-                },
-                _ => { Err(anyhow!("Unsopported app name - {}", name ))}
-            }
+    pub fn from_name(name: String) -> Result<SupportedApps, MyError> {
+        match name.as_str() {
+            "spotify" => Ok(SupportedApps::Spotify),
+            _ => Err(MyError::Custom("Error Generating app from name".to_owned())),
         }
+    }
+    pub fn name(&self) -> String {
+        match self {
+            Self::Spotify => String::from("spotify"),
+        }
+    }
 
-        pub fn endpoints(&self, client_id: Option<String>) -> SupportedAppsEnpoints {
-            match self {
-                Self::Spotify => {
-                    SupportedApps::Spotify.generate_endpoints(client_id)
-                },
-              
-            }
-        }
-        pub fn name(&self) -> String {
-            match self {
-                Self::Spotify => {
-                    String::from("spotify")
+    pub async fn profile(&self, token: &String) -> Result<UserProfileData, MyError> {
+        match self {
+            SupportedApps::Spotify => {
+                let client = reqwest::Client::new();
+                let url = "https://api.spotify.com/v1/me";
+                let response = client.get(url).bearer_auth(token).send().await?;
+                if response.status().is_success() {
+                    let user_profile = response.text().await?;
+                    println!("{user_profile}");
+                    let user_profile: SpotifyUser = serde_json::from_str(&user_profile)?;
+                    Ok(user_profile.into())
+                } else {
+                    Err(
+                        anyhow::anyhow!("Error fetching the user : status - {}", response.status())
+                            .context(response.status()),
+                    )?
                 }
             }
         }
-
-    fn get_default_client_id(&self) -> String {
+    }
+    pub fn get_default_client_id(&self) -> String {
         match self {
-            Self::Spotify => {
-                "6065e323864b49e19050d7d3d4b42ff1".to_string()
-            }
+            Self::Spotify => "6065e323864b49e19050d7d3d4b42ff1".to_string(),
+        }
+    }
+}
+
+impl Settings {
+    pub fn new_default() -> Self {
+        Self {
+            equalizer: Equalizer::new_default(),
+        }
+    }
+}
+
+impl Equalizer {
+    pub fn new_default() -> Self {
+        Self
+    }
+}
+
+impl From<SpotifyUser> for UserProfileData {
+    fn from(value: SpotifyUser) -> Self {
+        Self {
+            display_name: value.display_name,
+            email: value.email,
+            country: value.country,
+            image_url: value.images,
+            product: value.product,
+            merchant_id: value.id,
+        }
+    }
+}
+
+impl<EF, TT> From<StandardTokenResponse<EF, TT>> for AuthCreds
+where
+    EF: ExtraTokenFields,
+    TT: TokenType + AsRef<str>,
+{
+    fn from(token_response: StandardTokenResponse<EF, TT>) -> Self {
+        AuthCreds {
+            access_token: token_response.access_token().secret().to_string(),
+            token_type: token_response.token_type().as_ref().to_string(),
+            expires_at: token_response
+                .expires_in()
+                .map(|seconds| Utc::now() + chrono::Duration::seconds(seconds.as_secs() as i64))
+                .unwrap()
+                .timestamp(),
+
+            refresh_token: token_response.refresh_token().map(|t| t.secret().clone()),
         }
     }
 }
