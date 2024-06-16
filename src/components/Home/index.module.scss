@@ -1,0 +1,45 @@
+$background_color: rgb(0, 0, 0);
+$secondary_background_color: lighten($background_color, 7%);
+$text_color: white;
+
+
+.side_bar {
+    background-color: $secondary_background_color;
+    display: grid;
+    grid-template-rows: 90% auto;
+    gap: 1em;
+    height: 100%;
+    border-radius: 12px;
+    margin: 0 12px;
+}
+
+.player {
+    background-color: transparent;
+    margin: 6px;
+    display: grid;
+    grid-template-columns: 30% auto 30%;
+    gap: 1em;
+    height: 10%;
+    min-height: 80px;
+}
+
+.headerIcon {
+    font-weight: 100;
+    font-size: 20px;
+}
+
+.headerIconButton {
+    background-color: $background_color;
+    border-radius: 34px;
+}
+
+.licenseStk {
+    padding: 4px 18px;
+    border-radius: 24px;
+    text-align: center;
+    color: black;
+    font-weight: 900;
+    background-color: white;
+    cursor: pointer;
+
+}

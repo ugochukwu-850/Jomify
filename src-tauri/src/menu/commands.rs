@@ -115,6 +115,7 @@ pub async fn exchange_auth_code(
 pub async fn is_authenticated(db: tauri::State<'_, sled::Db>) -> Result<bool, MyError> {
     if let Some(user) = db.get("user")? {
         let user: User = serde_json::from_slice(&user)?;
+        println!("User: {user:?} \n");
         return Ok(user.is_authenticated(db).await?);
     }
     Err(anyhow!("Error there is no user in db"))?

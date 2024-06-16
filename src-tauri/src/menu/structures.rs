@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use chrono::Utc;
 use oauth2::{
     basic::BasicClient, AuthUrl, ClientId, ExtraTokenFields, RedirectUrl, Scope,
@@ -59,6 +61,7 @@ pub struct Settings {
 pub struct AuthCreds {
     pub access_token: String,
     pub refresh_token: Option<String>,
+    #[serde(alias = "expires_in")]
     pub expires_at: i64,
     pub token_type: String,
 }
@@ -76,10 +79,7 @@ pub struct MetaInfo {
     pub client_id: String,
 }
 impl User {
-    pub async fn is_authenticated(
-        &self,
-        db: tauri::State<'_, sled::Db>,
-    ) -> Result<bool, MyError> {
+    pub async fn is_authenticated(&self, db: tauri::State<'_, sled::Db>) -> Result<bool, MyError> {
         match self.get_auth_creds(db).await {
             Ok(_) => Ok(true),
             Err(e) => Err(e),
@@ -97,7 +97,7 @@ impl User {
                     Some(data) => {
                         let auth_cred: AuthCreds = serde_json::from_slice(&data)?;
                         let auth_cred = self.refresh(auth_cred).await?;
-                        db.insert(&app_auth_key, &*serde_json::to_string(&auth_cred)?)?;
+                        db.insert(&app_auth_key, &*serde_json::to_vec(&auth_cred)?)?;
                         Ok(auth_cred)
                     }
                     None => Err(anyhow::anyhow!("No key for current app in database"))?,
@@ -105,38 +105,46 @@ impl User {
             }
         }
     }
-    async fn refresh(&self, creds: AuthCreds) -> Result<AuthCreds, anyhow::Error> {
+    
+    async fn refresh(&self, creds: AuthCreds) -> Result<AuthCreds, MyError> {
         match self.app {
             SupportedApps::Spotify => {
                 if creds.expires_at > chrono::Utc::now().timestamp() {
-                    return Ok(creds);
-                }
+                     return Ok(creds);
+                 }
 
                 let client = reqwest::Client::new();
                 let uri = self
                     .app
                     .generate_endpoints(Some(self.meta.client_id.to_owned()));
-                let params = [
-                    ("refresh_token", creds.refresh_token.unwrap()),
+                let token = creds.refresh_token.unwrap();
+                println!("{token}");
+                let params = HashMap::from([
+                    ("refresh_token", token),
                     ("client_id", self.meta.client_id.to_owned()),
-                ];
+                    ("grant_type", "refresh_token".to_owned())
+                ]);
 
                 let res = client
                     .post(uri.token_url)
                     .form(&params)
-                    .header("Content-Type", "application/x-www-form-urlencoded")
                     .send()
                     .await;
 
                 match res {
                     Ok(response) => {
-                        let response = response.text().await?;
-                        let auth_creds: AuthCreds = serde_json::from_str(&response)?;
-                        return Ok(auth_creds);
+                        if response.status().is_success() {
+                            let response = response.text().await?;
+                            let mut auth_creds: AuthCreds = serde_json::from_str(&response)?;
+                            auth_creds.validate();
+                            return Ok(auth_creds);
+                        }
+
+                        Err(MyError::Custom(format!("Refresh operation did not succeed: {:?} ", &response.text().await)))
                     }
-                    Err(e) => Err(anyhow::anyhow!(format!(
-                        "An error occured while making the refresh request: {:?}",
-                        e
+                    Err(e) => Err(MyError::Custom(format!(
+                        "An error occured while making the refresh request: {}",
+                        e.to_string()
                     ))),
                 }
             }
@@ -212,10 +220,11 @@ impl SupportedApps {
                     let user_profile: SpotifyUser = serde_json::from_str(&user_profile)?;
                     Ok(user_profile.into())
                 } else {
-                    Err(
-                        anyhow::anyhow!("Error fetching the user : status - {}", response.status())
-                            .context(response.status()),
-                    )?
+                    Err(anyhow::anyhow!(
+                        "Error fetching the user : status - {}",
+                        response.status()
+                    )
+                    .context(response.status()))?
                 }
             }
         }
@@ -270,6 +279,14 @@ where
                 .timestamp(),
 
             refresh_token: token_response.refresh_token().map(|t| t.secret().clone()),
+        }
+    }
+}
+
+impl AuthCreds {
+    pub fn validate(&mut self) {
+        if self.expires_at < chrono::Utc::now().timestamp() {
+            self.expires_at += chrono::Utc::now().timestamp();
         }
     }
 }

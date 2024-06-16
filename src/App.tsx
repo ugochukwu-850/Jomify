@@ -6,14 +6,13 @@ import "./App.scss";
 import AuthPage from "./components/AuthHome/index";
 import { useEffect, useState } from "react";
 
-import { StyledEngineProvider, ThemeProvider } from "@mui/material";
+import { StyledEngineProvider } from "@mui/material";
 
-import themes from "./components/AuthHome/theme";
 import { invoke } from "@tauri-apps/api/tauri";
 import Home from "./components/Home";
 
 function App() {
-  const [loggedIn, setLoggedIn] = useState<boolean>(false);
+  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
     console.log("Running Effect in app component");
@@ -21,21 +20,26 @@ function App() {
     let run_auth_status = async () => {
       try {
         let loginStatus: boolean = await invoke("is_authenticated");
+        console.log("Login statys", loginStatus);
         setLoggedIn(loginStatus);
       } catch (error) {
+        setLoggedIn(true);
         console.log(error);
       }
     };
 
     run_auth_status();
   }, []);
-
-  if (loggedIn === false) {
+  console.log(loggedIn);
+  if (loggedIn === null) {
+    return <>Loading</>
+  }
+  else if (loggedIn === false) {
     return <AuthPage />;
   } else {
     return (
       <StyledEngineProvider injectFirst>
-          <Home />
+        <Home/>
       </StyledEngineProvider>
     );
   }
