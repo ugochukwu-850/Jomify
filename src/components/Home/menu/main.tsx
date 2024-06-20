@@ -19,8 +19,8 @@ const Main = () => {
     >
       <JomoAppBar />
       <Box sx={{ overflowY: "scroll", padding: "12px" }}>
-        <FeaturedPlaylist/>
-        <MainPlaylistDiver/>
+        <FeaturedPlaylist />
+        <MainPlaylistDiver />
       </Box>
     </Box>
   );

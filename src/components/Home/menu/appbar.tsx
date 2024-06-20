@@ -9,6 +9,7 @@ import {
   AppBar,
   Button,
   Grid,
+  IconButton,
   InputAdornment,
   SvgIcon,
   Typography,
@@ -23,32 +24,30 @@ const JomoAppBar = () => {
       position="relative"
       sx={{ background: "transparent" }}
     >
-      <Grid container columns={16} sx={{ margin: "0" }}>
+      <Grid container columns={16} sx={{ margin: "0" , padding: "4px 12px"}}>
         <Grid
           item
-          xs={4}
-          md={3}
-          lg={2}
+          xs={2}
+        
           sx={{
             display: "flex",
             flexDirection: "row",
             gap: ".2em",
-            placeContent: "space-evenly",
             margin: "auto",
           }}
         >
-          <Button className={styles.headerIconButton}>
+          <IconButton className={styles.headerIconButton}>
             <ArrowBackIosOutlined className={styles.headerIcon} />
-          </Button>
-          <Button className={styles.headerIconButton}>
+          </IconButton>
+          <IconButton className={styles.headerIconButton}>
             <ArrowForwardIosOutlined className={styles.headerIcon} />
-          </Button>
+          </IconButton>
         </Grid>
-        <Grid item xs={9} md={6} lg={10} sx={{padding: "2px 12px"}}>
+        <Grid item xs={8} sx={{ padding: "2px 12px" }}>
           <JomoAppSearch
             variant="outlined"
             placeholder="Search"
-            sx={{ minWidth: "300px", width: "50%" }}
+            sx={{ minWidth: "200px", width: "60%" }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -65,19 +64,21 @@ const JomoAppBar = () => {
             display: "flex",
             flexDirection: "row",
             flexWrap: "nowrap",
-            placeContent: "space-evenly",
+            placeContent: "end",
+            gap: "24px"
           }}
           xs={6}
-          lg={4}
-          md={6}
+        
         >
-          <Typography className={styles.licenseStk} variant="body1">Spotify</Typography>
-          <Button className={styles.headerIconButton}>
+          <Typography className={styles.licenseStk} variant="body1">
+            Spotify
+          </Typography>
+          <IconButton className={styles.headerIconButton}>
             <PersonOutlineOutlined className={styles.headerIcon} />
-          </Button>
-          <Button className={styles.headerIconButton}>
+          </IconButton>
+          <IconButton className={styles.headerIconButton}>
             <PaymentOutlined className={styles.headerIcon} />
-          </Button>
+          </IconButton>
         </Grid>
       </Grid>
     </AppBar>

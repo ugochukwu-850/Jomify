@@ -6,16 +6,17 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  useMediaQuery,
 } from "@mui/material";
 import style from "../index.module.scss";
 
 
 const HomeSideMenu = () => {
   return (
-    <List sx={{display: "grid", gridTemplateRows: "90% auto"}} className={style.side_bar}>
+    <List sx={{display: "grid", gridTemplateRows: "90% auto", width: "100%"}} className={style.side_bar}>
     <Box>
       <ListItem key={0}>
-        <ListItemButton autoFocus>
+        <ListItemButton autoFocus sx={{display: "flex", flexDirection: "row", placeContent: "space-evenly"}}>
           <ListItemIcon>
             <MusicNote/>
           </ListItemIcon>
@@ -23,7 +24,7 @@ const HomeSideMenu = () => {
         </ListItemButton>
       </ListItem>
       <ListItem key={0}>
-        <ListItemButton>
+        <ListItemButton sx={{display: "flex", flexDirection: "row", placeContent: "space-evenly"}}>
           <ListItemIcon color="red">
             <HomeMax />
           </ListItemIcon>
@@ -31,7 +32,7 @@ const HomeSideMenu = () => {
         </ListItemButton>
       </ListItem>
       <ListItem key={0}>
-        <ListItemButton>
+        <ListItemButton sx={{display: "flex", flexDirection: "row", placeContent: "space-evenly"}}>
           <ListItemIcon>
             <LibraryMusicRounded />
           </ListItemIcon>
@@ -40,8 +41,8 @@ const HomeSideMenu = () => {
       </ListItem>
     </Box>
 
-    <ListItem key={0}>
-      <ListItemButton>
+    <ListItem key={0} >
+      <ListItemButton sx={{display: "flex", flexDirection: "row", placeContent: "space-evenly"}}>
         <ListItemIcon>
           <Settings />
         </ListItemIcon>

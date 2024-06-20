@@ -5,12 +5,12 @@ $text_color: white;
 
 .side_bar {
     background-color: $secondary_background_color;
-    display: grid;
-    grid-template-rows: 90% auto;
-    gap: 1em;
+    border-radius: 14px;
     height: 100%;
-    border-radius: 12px;
-    margin: 0 12px;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    place-content: space-between;
 }
 
 .player {

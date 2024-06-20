@@ -45,30 +45,29 @@ const FeaturedPlaylist = () => {
                 flexDirection: "row",
                 flexWrap: "nowrap",
                 background: "#242424",
-                borderRadius: "8px",
+                borderRadius: "12px",
                 margin: "4px 12px",
               }}
             >
               <CardMedia
                 component="img"
-                sx={{ width: "54px", borderRadius: "6px 0 0 6px" }}
+                sx={{ width: "54px", borderRadius: "12px 0 0 12px" }}
                 image="https://img.freepik.com/premium-psd/club-dj-party-flyer-social-media-post_505751-4439.jpg?size=626&ext=jpg"
               />
               <Typography
                 variant="body1"
-                sx={{ fontWeight: "700", padding: "0 4px", margin: "auto 2px" }}
+                sx={{ fontWeight: "500", padding: "0 2px", margin: "auto"}}
               >
                 My Recommendation Playlist
               </Typography>
-              <Button>
+              <IconButton sx={{margin: "auto", "& :hover": {background: "green", borderRadius: "inherit"}}}>
                 <PlayArrow
                   sx={{
                     padding: "2px",
-                    "& :hover": { color: "green" },
-                    fontSize: "44px",
+                    
                   }}
                 />
-              </Button>
+              </IconButton>
             </Box>
           </Box>
         ))}
@@ -77,7 +76,7 @@ const FeaturedPlaylist = () => {
   );
 };
 
-const MainPlaylistDiver = () => {
+const MainPlaylistCollage = () => {
   function srcset(image: string, size: number, rows = 1, cols = 1) {
     return {
       src: `${image}?w=${size * cols}&h=${size * rows}&fit=crop&auto=format`,
@@ -202,4 +201,4 @@ const MainPlaylistDiver = () => {
   return QuiltedImageList();
 };
 
-export { FeaturedPlaylist as default, MainPlaylistDiver };
+export { FeaturedPlaylist as default, MainPlaylistCollage as MainPlaylistDiver };
