@@ -23,7 +23,7 @@ function App() {
         console.log("Login statys", loginStatus);
         setLoggedIn(loginStatus);
       } catch (error) {
-        setLoggedIn(true);
+        setLoggedIn(false);
         console.log(error);
       }
     };

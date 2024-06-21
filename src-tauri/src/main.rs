@@ -3,9 +3,18 @@
 
 use std::path::PathBuf;
 
+use menu::{auth_structures::User, utils::get_user_with_db};
+use serde::{Deserialize, Serialize};
 use tauri::{api::path::app_data_dir, Manager};
 
 pub mod menu;
+use std::sync::{Arc, Mutex};
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AppState {
+    user: Mutex<Option<User>>,
+}
 
 fn main() {
     tauri::Builder::default()
@@ -19,15 +28,18 @@ fn main() {
             // Open or create the Sled database
             let db = sled::open(db_path)?;
 
+            // set user into state from DB
+            app.manage(AppState { user: Mutex::new(None) });
+
             // Store the database in Tauri's state
             app.manage(db);
-
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             menu::commands::generate_auth_url,
             menu::commands::exchange_auth_code,
-            menu::commands::is_authenticated
+            menu::commands::is_authenticated,
+            menu::commands::home
         ])
         .run(tauri::generate_context!())
         .expect("An error occured while initializing!!");

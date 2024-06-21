@@ -9,12 +9,12 @@ use serde::{Deserialize, Serialize};
 
 use super::errors::MyError;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum SupportedApps {
     Spotify,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[allow(unused_variables)]
 pub struct SupportedAppsEnpoints {
     authourization_url: String,
@@ -22,7 +22,7 @@ pub struct SupportedAppsEnpoints {
     redirect_url: String,
     client_id: String,
 }
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Serialize, Debug, Deserialize, Clone)]
 #[allow(unused_variables)]
 pub struct UserProfileData {
     pub display_name: Option<String>,
@@ -43,15 +43,15 @@ pub struct SpotifyUser {
     id: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Image {
     pub url: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Equalizer;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
     equalizer: Equalizer,
 }
@@ -66,7 +66,7 @@ pub struct AuthCreds {
     pub token_type: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct User {
     pub app: SupportedApps,
     pub settings: Settings,
@@ -74,7 +74,7 @@ pub struct User {
     pub meta: MetaInfo,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MetaInfo {
     pub client_id: String,
 }

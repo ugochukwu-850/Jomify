@@ -46,3 +46,42 @@ interface User {
     settings: Settings;
     profile: UserProfileData;
 }
+
+// Home interfaces
+
+export interface HomeResponse {
+    gallery: DefaultObjectsPreview[];
+    featured_playlists: DefaultObjectsPreview[];
+    albums?: DefaultObjectsPreview[];
+  }
+  
+  export interface DefaultObjectsPreview {
+    name: string;
+    description?: string;
+    artist: Artist[];
+    image: Image[];
+    id: string;
+    object_type: string;
+    href: string;
+    col?: number;
+    row?: number;
+    added_at?: string;
+    released_at?: string;
+  }
+  
+  interface Artist {
+    href: string;
+    id: string;
+    name: string;
+    type: string;
+    uri: string;
+  }
+  
+
+  
+  interface Image {
+    height?: number;
+    url: string;
+    width?: number;
+  }
+

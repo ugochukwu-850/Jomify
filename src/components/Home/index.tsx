@@ -3,8 +3,29 @@ import homeTheme from "./theme";
 import HomeSideMenu from "./menu/sidebar";
 import MusicPlayer from "./menu/player";
 import Main from "./menu/main";
+import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/tauri";
+import { HomeResponse } from "../../types";
 
 const Home = () => {
+  console.log("Running Home effect");
+  let [homeData, setHomeData] = useState<HomeResponse | null>(null)
+
+  useEffect(() => {
+    console.log("Running Effect in app component");
+    let init_home = async () => {
+      try {
+        let homeData: HomeResponse = await invoke("home");
+        console.log("Login statys", homeData);
+        setHomeData(homeData);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    init_home();
+  }, []);
+
   return (
     <ThemeProvider theme={homeTheme}>
       <CssBaseline />
@@ -29,7 +50,7 @@ const Home = () => {
             <HomeSideMenu />
           </Grid>
           <Grid item xs={18} md ={16} height={"100%"} sx={{ overflow: "hidden" }}>
-            <Main />
+            <Main props={homeData}/>
           </Grid>
         </Grid>
         <MusicPlayer />

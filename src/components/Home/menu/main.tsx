@@ -1,8 +1,16 @@
 import { Box } from "@mui/material";
 import JomoAppBar from "./appbar";
 import FeaturedPlaylist, { MainPlaylistDiver } from "./content_menu";
-
-const Main = () => {
+import { HomeResponse } from "../../../types";
+import { FC } from "react";
+interface mainProp {
+  props: HomeResponse | null
+}
+const Main: FC<mainProp> = ({ props }) : JSX.Element =>  {
+  if (props == null) {
+    return <></>
+  }
+  
   return (
     <Box
       sx={{
@@ -19,8 +27,8 @@ const Main = () => {
     >
       <JomoAppBar />
       <Box sx={{ overflowY: "scroll", padding: "12px" }}>
-        <FeaturedPlaylist />
-        <MainPlaylistDiver />
+        <FeaturedPlaylist data={props.featured_playlists} />
+        <MainPlaylistDiver data={props.gallery} />
       </Box>
     </Box>
   );

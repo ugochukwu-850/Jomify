@@ -1,7 +1,10 @@
-use crate::menu::structures::{AuthCreds, MetaInfo};
+use crate::menu::auth_structures::{AuthCreds, MetaInfo};
+use crate::AppState;
 
+use super::auth_structures::{Settings, SupportedApps, User};
+use super::core_structures::HomeResponse;
 use super::errors::MyError;
-use super::structures::{Settings, SupportedApps, User};
+use super::gear_structures::FeaturedPlaylistRequest;
 
 use anyhow::anyhow;
 use oauth2::reqwest::async_http_client;
@@ -112,11 +115,33 @@ pub async fn exchange_auth_code(
 /// If access_creds are expired it trys to refresh using the refresh token
 /// If the refresh_token or refresh process fails then it returns false
 /// NB: If no access creds it returns ```false```
-pub async fn is_authenticated(db: tauri::State<'_, sled::Db>) -> Result<bool, MyError> {
+pub async fn is_authenticated(
+    db: tauri::State<'_, sled::Db>,
+    app_state: tauri::State<'_, AppState>,
+) -> Result<bool, MyError> {
     if let Some(user) = db.get("user")? {
         let user: User = serde_json::from_slice(&user)?;
         println!("User: {user:?} \n");
-        return Ok(user.is_authenticated(db).await?);
+        let res = user.is_authenticated(db).await?;
+        let mut app_state = app_state
+            .user
+            .lock()
+            .map_err(|_| MyError::Custom("Error unlocking state".to_string()))?;
+        *app_state = Some(user.clone());
+        return Ok(res);
     }
     Err(anyhow!("Error there is no user in db"))?
+}
+
+#[command]
+pub async fn home(
+    db: tauri::State<'_, sled::Db>,
+    app_state: tauri::State<'_, AppState>,
+) -> Result<HomeResponse, MyError> {
+    let user = app_state.user.lock().unwrap().clone();
+    if let Some(user) = user {
+        return HomeResponse::new(user.get_auth_creds(db).await?.access_token).await;
+    }
+
+    Err(anyhow::anyhow!("Error"))?
 }

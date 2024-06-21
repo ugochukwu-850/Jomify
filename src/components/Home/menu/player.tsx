@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   CardMedia,
+  IconButton,
   Slider,
   Stack,
   Typography,
@@ -103,24 +104,25 @@ const PlayerActions = () => {
   return (
     <Box
       sx={{
-        display: "grid",
-        gridTemplateColumns: "70% auto",
+        display: "flex",
+        flexDirection: "row",
+        placeContent:"space-evenly",
         padding: "0 12px",
       }}
     >
-      <Box sx={{ placeContent: "space-evenly" }}>
-        <Button>
+      <Box sx={{ placeContent: "space-evenly", gap: ".4em"}}>
+        <IconButton>
           <MusicVideo sx={{ fontSize: "1.5rem" }} />
-        </Button>
-        <Button>
+        </IconButton>
+        <IconButton>
           <LyricsOutlined sx={{ fontSize: "1.5rem" }} />
-        </Button>
-        <Button>
+        </IconButton>
+        <IconButton>
           <QueueMusicOutlined sx={{ fontSize: "1.5rem" }} />
-        </Button>
-        <Button>
+        </IconButton>
+        <IconButton>
           <PlaylistAddCircleOutlined sx={{ fontSize: "1.5rem" }} />
-        </Button>
+        </IconButton>
       </Box>
       <Box
         display={"flex"}
@@ -130,6 +132,7 @@ const PlayerActions = () => {
           flexWrap: "nowrap",
           gap: "4px",
           padding: "0 12px",
+          minWidth: "150px"
         }}
       >
         <VolumeDownOutlined sx={{ margin: "auto 0" }} />

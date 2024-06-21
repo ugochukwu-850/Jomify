@@ -1,4 +1,14 @@
-import { InfoOutlined, Pause, PlayArrow, PlayArrowOutlined } from "@mui/icons-material";
+import {
+  BlockOutlined,
+  Grid3x3,
+  InfoOutlined,
+  Pause,
+  PlayArrow,
+  PlayArrowOutlined,
+  ViewComfyOutlined,
+  ViewModuleOutlined,
+  ViewQuiltOutlined,
+} from "@mui/icons-material";
 import {
   Box,
   Button,
@@ -11,9 +21,23 @@ import {
   Typography,
   lighten,
 } from "@mui/material";
-
-const FeaturedPlaylist = () => {
-  const recommendations = Array(6).fill(0);
+import { DefaultObjectsPreview } from "../../../types";
+import {
+  FC,
+  JSXElementConstructor,
+  Key,
+  ReactElement,
+  ReactNode,
+  ReactPortal,
+  useState,
+} from "react";
+interface MajorProp {
+  data: DefaultObjectsPreview[] | null;
+}
+const FeaturedPlaylist: FC<MajorProp> = ({ data }) => {
+  if (data == null) {
+    return <></>;
+  }
   return (
     <Box>
       <Typography variant="h5" sx={{ fontWeight: "900" }}>
@@ -27,7 +51,7 @@ const FeaturedPlaylist = () => {
           placeContent: "space-between",
         }}
       >
-        {recommendations.map((_, index) => (
+        {data.map((datum, index) => (
           <Box
             key={index}
             sx={{
@@ -41,9 +65,9 @@ const FeaturedPlaylist = () => {
               sx={{
                 minWidth: "360px",
                 maxWidth: "400px",
-                display: "flex",
-                flexDirection: "row",
-                flexWrap: "nowrap",
+                display: "grid",
+                gridTemplateColumns: "auto 50% auto",
+                gap: ".2em",
                 background: "#242424",
                 borderRadius: "12px",
                 margin: "4px 12px",
@@ -52,19 +76,28 @@ const FeaturedPlaylist = () => {
               <CardMedia
                 component="img"
                 sx={{ width: "54px", borderRadius: "12px 0 0 12px" }}
-                image="https://img.freepik.com/premium-psd/club-dj-party-flyer-social-media-post_505751-4439.jpg?size=626&ext=jpg"
+                image={datum.image[0].url}
               />
               <Typography
                 variant="body1"
-                sx={{ fontWeight: "500", padding: "0 2px", margin: "auto"}}
+                sx={{
+                  fontWeight: "500",
+                  padding: "0 2px",
+                  margin: "auto  2px",
+                  textAlign: "start",
+                }}
               >
-                My Recommendation Playlist
+                {datum.name}
               </Typography>
-              <IconButton sx={{margin: "auto", "& :hover": {background: "green", borderRadius: "inherit"}}}>
+              <IconButton
+                sx={{
+                  margin: "auto",
+                  "& :hover": { background: "green", borderRadius: "inherit" },
+                }}
+              >
                 <PlayArrow
                   sx={{
                     padding: "2px",
-                    
                   }}
                 />
               </IconButton>
@@ -76,7 +109,81 @@ const FeaturedPlaylist = () => {
   );
 };
 
-const MainPlaylistCollage = () => {
+const MainPlaylistCollage: FC<MajorProp> = ({ data }) => {
+  let [mansory, setMansory] = useState(true);
+  if (data == null) {
+    return <></>;
+  } else {
+    return (
+      <Box sx={{ margin: "12px 0" }}>
+        <Box sx={{display: "flex", flexDirection: "row", flexWrap:"nowrap", placeContent: "space-between"}}>
+          <Typography variant="h5" sx={{ fontWeight: "900" }}>
+            Gallery
+          </Typography>
+          <IconButton
+            onClick={() => {
+              setMansory(!mansory);
+            }}
+          >
+            {mansory ? <ViewComfyOutlined /> : <ViewQuiltOutlined />}
+          </IconButton>
+        </Box>
+        <ImageList
+          sx={{
+            width: "100%",
+            height: "max-content",
+            padding: "12px",
+            borderRadius: "12px",
+          }}
+          variant={mansory ? "masonry" : "quilted"}
+          cols={4}
+          rowHeight={141}
+        >
+          {shuffleArray(data).map((item, index) => (
+            <ImageListItem
+              sx={{ borderRadius: "12px" }}
+              key={index}
+              cols={item.col || 1}
+              rows={item.row || 1}
+            >
+              <img
+                {...srcset(item.image[0].url, 121, item.row, item.col)}
+                alt={item.name}
+                loading="lazy"
+                style={{ borderRadius: "12px" }}
+              />
+              <ImageListItemBar
+                sx={{
+                  padding: "0 8px",
+                  borderRadius: "12px 12px ",
+                  background:
+                    "linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, " +
+                    "rgba(0,0,0,0.3) 70%, rgba(0,0,0,0) 100%)",
+                }}
+                title={item.name}
+                subtitle={
+                  item.artist
+                    .map((e, _) => {
+                      e.name;
+                    })
+                    .join(", ") || "Music Playlist Information"
+                }
+                actionIcon={
+                  <IconButton
+                    sx={{ color: "rgba(255, 255, 255, 0.74)" }}
+                    aria-label={`info about ${item.name}`}
+                  >
+                    <PlayArrowOutlined />
+                  </IconButton>
+                }
+                position="top"
+              />
+            </ImageListItem>
+          ))}
+        </ImageList>
+      </Box>
+    );
+  }
   function srcset(image: string, size: number, rows = 1, cols = 1) {
     return {
       src: `${image}?w=${size * cols}&h=${size * rows}&fit=crop&auto=format`,
@@ -85,120 +192,24 @@ const MainPlaylistCollage = () => {
       }&fit=crop&auto=format&dpr=2 2x`,
     };
   }
-
-  function QuiltedImageList() {
-    return (
-      <Box>
-        <Typography variant="h5" sx={{ fontWeight: "900" }}>
-          Most Loved Playlist
-        </Typography>
-        <ImageList
-          sx={{
-            width: "100%",
-            height: "max-content",
-            padding: "12px",
-            borderRadius: "12px",
-          }}
-          variant="quilted"
-          cols={4}
-          rowHeight={121}
-        >
-          {itemData.map((item) => (
-            <ImageListItem
-              sx={{ borderRadius: "12px" }}
-              key={item.img}
-              cols={item.cols || 1}
-              rows={item.rows || 1}
-            >
-              <img
-                {...srcset(item.img, 121, item.rows, item.cols)}
-                alt={item.title}
-                loading="lazy"
-                style={{ borderRadius: "12px" }}
-              />
-              <ImageListItemBar
-              sx={{padding: "0 8px", borderRadius: "0 0 12px 12px "}}
-                title={item.title}
-                subtitle={item.author || "Music Playlist Information"}
-                actionIcon={
-                  <IconButton
-                    sx={{ color: "rgba(255, 255, 255, 0.74)" }}
-                    aria-label={`info about ${item.title}`}
-                  >
-                    <PlayArrowOutlined />
-                  </IconButton>
-                }
-              />
-            </ImageListItem>
-          ))}
-        </ImageList>
-      </Box>
-    );
+  /**
+   * Shuffles an array in place using the Fisher-Yates (Knuth) shuffle algorithm.
+   * @param array The array to shuffle.
+   * @returns The shuffled array.
+   */
+  function shuffleArray<T>(array: T[]): T[] {
+    const shuffledArray = array.slice(); // Create a copy of the array to avoid mutating the original array
+    for (let i = shuffledArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledArray[i], shuffledArray[j]] = [
+        shuffledArray[j],
+        shuffledArray[i],
+      ]; // Swap elements
+    }
+    return shuffledArray;
   }
-
-  const itemData = [
-    {
-      img: "https://plus.unsplash.com/premium_photo-1715876267697-800a09450c4b?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxlZGl0b3JpYWwtZmVlZHwzM3x8fGVufDB8fHx8fA%3D%3D",
-      title: "Breakfast",
-      rows: 2,
-      cols: 2,
-    },
-    {
-      img: "https://img.freepik.com/premium-psd/club-dj-party-flyer-social-media-post-web-banner-template_505751-2237.jpg?size=626&ext=jpg",
-      title: "Janie Love",
-    },
-    {
-      img: "https://img.freepik.com/free-psd/spring-party-square-flyer-template-with-photo_23-2148465200.jpg?size=626&ext=jpg",
-      title: "Camera",
-      rows: 1
-    },
-    {
-      img: "https://img.freepik.com/premium-psd/vinyl-logo-mockup-psd_93536-1933.jpg?size=626&ext=jpg",
-      title: "Coffee",
-      cols: 2,
-    },
-    {
-      img: "https://images.unsplash.com/photo-1533827432537-70133748f5c8",
-      title: "Hats",
-      cols: 1,
-    },
-    {
-      img: "https://images.unsplash.com/photo-1718420814549-3a812ee97e1d?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxlZGl0b3JpYWwtZmVlZHwxOHx8fGVufDB8fHx8fA%3D%3D",
-      title: "Honey",
-      author: "@arwinneil",
-      rows: 2,
-      cols: 2,
-    },
-    {
-      img: "https://images.unsplash.com/photo-1516802273409-68526ee1bdd6",
-      title: "Basketball",
-    },
-    {
-      img: "https://images.unsplash.com/photo-1518756131217-31eb79b20e8f",
-      title: "Fern",
-    },
-    {
-      img: "https://images.unsplash.com/photo-1597645587822-e99fa5d45d25",
-      title: "Mushrooms",
-      rows: 2,
-      cols: 2,
-    },
-    {
-      img: "https://img.freepik.com/premium-psd/night-party-social-media-template_597327-724.jpg?size=626&ext=jpg&ga=GA1.1.2085574500.1718559299&semt=ais_user",
-      title: "Tomato basil",
-    },
-    {
-      img: "https://img.freepik.com/free-psd/club-dj-party-flyer-social-media-post_505751-3401.jpg?size=626&ext=jpg&ga=GA1.1.2085574500.1718559299&semt=ais_user",
-      title: "Sea star",
-    },
-    {
-      img: "https://images.unsplash.com/photo-1589118949245-7d38baf380d6",
-      title: "Bike",
-      cols: 2,
-    },
-  ];
-
-  return QuiltedImageList();
 };
-
-export { FeaturedPlaylist as default, MainPlaylistCollage as MainPlaylistDiver };
+export {
+  FeaturedPlaylist as default,
+  MainPlaylistCollage as MainPlaylistDiver,
+};

@@ -23,7 +23,7 @@ const HomeSideMenu = () => {
           <ListItemText  primary="Jomify"/>
         </ListItemButton>
       </ListItem>
-      <ListItem key={0}>
+      <ListItem key={1}>
         <ListItemButton sx={{display: "flex", flexDirection: "row", placeContent: "space-evenly"}}>
           <ListItemIcon color="red">
             <HomeMax />
@@ -31,7 +31,7 @@ const HomeSideMenu = () => {
           <ListItemText className={style.main} primary="Home"/>
         </ListItemButton>
       </ListItem>
-      <ListItem key={0}>
+      <ListItem key={2}>
         <ListItemButton sx={{display: "flex", flexDirection: "row", placeContent: "space-evenly"}}>
           <ListItemIcon>
             <LibraryMusicRounded />
@@ -41,7 +41,7 @@ const HomeSideMenu = () => {
       </ListItem>
     </Box>
 
-    <ListItem key={0} >
+    <ListItem key={3} >
       <ListItemButton sx={{display: "flex", flexDirection: "row", placeContent: "space-evenly"}}>
         <ListItemIcon>
           <Settings />
