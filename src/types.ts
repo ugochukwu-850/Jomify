@@ -1,87 +1,111 @@
 interface SupportedAppsEndpoints {
-    authorization_url: string;
-    token_url: string;
-    redirect_url: string;
-    client_id: string;
+  authorization_url: string;
+  token_url: string;
+  redirect_url: string;
+  client_id: string;
 }
 
 enum SupportedApps {
-    Spotify
+  Spotify,
 }
 interface UserProfileData {
-    display_name?: string | null;
-    email?: string | null;
-    country?: string | null;
-    image_url: string;
-    product: string;
-    merchant_id: string;
+  display_name?: string | null;
+  email?: string | null;
+  country?: string | null;
+  image_url: string;
+  product: string;
+  merchant_id: string;
 }
 
 interface SpotifyUser {
-    country?: string | null;
-    display_name?: string | null;
-    email?: string | null;
-    images: [{
-        url: string;
-    }];
-    product: string;
-    id: string;
+  country?: string | null;
+  display_name?: string | null;
+  email?: string | null;
+  images: [
+    {
+      url: string;
+    }
+  ];
+  product: string;
+  id: string;
 }
 
 interface Equalizer {}
 
 interface Settings {
-    equalizer: Equalizer;
+  equalizer: Equalizer;
 }
 
 interface AuthCreds {
-    access_token: string;
-    refresh_token?: string | null;
-    expires_at: number;
-    token_type: string;
+  access_token: string;
+  refresh_token?: string | null;
+  expires_at: number;
+  token_type: string;
 }
 
 interface User {
-    app: SupportedApps;
-    settings: Settings;
-    profile: UserProfileData;
+  app: SupportedApps;
+  settings: Settings;
+  profile: UserProfileData;
 }
 
 // Home interfaces
 
 export interface HomeResponse {
-    gallery: DefaultObjectsPreview[];
-    featured_playlists: DefaultObjectsPreview[];
-    albums?: DefaultObjectsPreview[];
-  }
-  
-  export interface DefaultObjectsPreview {
-    name: string;
-    description?: string;
-    artist: Artist[];
-    image: Image[];
-    id: string;
-    object_type: string;
-    href: string;
-    col?: number;
-    row?: number;
-    added_at?: string;
-    released_at?: string;
-  }
-  
-  interface Artist {
-    href: string;
-    id: string;
-    name: string;
-    type: string;
-    uri: string;
-  }
-  
+  gallery: DefaultObjectsPreview[];
+  featured_playlists: DefaultObjectsPreview[];
+  albums?: DefaultObjectsPreview[];
+}
 
-  
-  interface Image {
-    height?: number;
-    url: string;
-    width?: number;
-  }
+export interface DefaultObjectsPreview {
+  name: string;
+  description?: string;
+  artist: Artist[];
+  image: Image[];
+  id: string;
+  object_type: string;
+  href: string;
+  col?: number;
+  row?: number;
+  added_at?: string;
+  released_at?: string;
+}
+
+interface Artist {
+  href: string;
+  id: string;
+  name: string;
+  type: string;
+  uri: string;
+}
+
+interface Image {
+  height?: number;
+  url: string;
+  width?: number;
+}
+
+interface Track {
+  name: string;
+  duration: number;
+  isPlaying?: boolean;
+  artist: Artist;
+  url?: URL;
+  id: string;
+  popularity: number;
+
+  play?: () => {};
+}
+
+export interface Page {
+  header: DefaultObjectsPreview;
+  tracks?: Track[];
+}
+
+export interface JomoNavigation {
+  previous: null | JomoNavigation;
+  next: null | JomoNavigation;
+  data: Page | null
+}
+
 

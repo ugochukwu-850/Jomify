@@ -13,6 +13,7 @@ export default defineConfig(async () => ({
         ref: true,
         svgo: false,
         titleProp: true,
+        icon: "24px"
       },
       include: "**/*.svg",
     }),

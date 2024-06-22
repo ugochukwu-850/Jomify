@@ -7,28 +7,33 @@ import {
 } from "@mui/icons-material";
 import {
   AppBar,
-  Button,
   Grid,
   IconButton,
   InputAdornment,
-  SvgIcon,
   Typography,
 } from "@mui/material";
 import { JomoAppSearch } from "../theme";
 import styles from "../index.module.scss";
+import { FC } from "react";
+import { JomoNavigation, Page } from "../../../types";
+import nextPage, { previousPage } from "../../../util";
 
-const JomoAppBar = () => {
+interface ModelProps {
+  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>;
+  nav: JomoNavigation;
+}
+
+const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
   return (
     <AppBar
       elevation={0}
       position="relative"
       sx={{ background: "transparent" }}
     >
-      <Grid container columns={16} sx={{ margin: "0" , padding: "4px 12px"}}>
+      <Grid container columns={16} sx={{ margin: "0", padding: "4px 12px" }}>
         <Grid
           item
           xs={2}
-        
           sx={{
             display: "flex",
             flexDirection: "row",
@@ -36,10 +41,20 @@ const JomoAppBar = () => {
             margin: "auto",
           }}
         >
-          <IconButton className={styles.headerIconButton}>
+          <IconButton
+            className={styles.headerIconButton}
+            onClick={() => {
+              nextPage(nav, setNav);
+            }}
+          >
             <ArrowBackIosOutlined className={styles.headerIcon} />
           </IconButton>
-          <IconButton className={styles.headerIconButton}>
+          <IconButton
+            className={styles.headerIconButton}
+            onClick={() => {
+              previousPage(nav, setNav);
+            }}
+          >
             <ArrowForwardIosOutlined className={styles.headerIcon} />
           </IconButton>
         </Grid>
@@ -65,10 +80,9 @@ const JomoAppBar = () => {
             flexDirection: "row",
             flexWrap: "nowrap",
             placeContent: "end",
-            gap: "24px"
+            gap: "24px",
           }}
           xs={6}
-        
         >
           <Typography className={styles.licenseStk} variant="body1">
             Spotify

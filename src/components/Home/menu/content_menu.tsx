@@ -1,40 +1,28 @@
 import {
-  BlockOutlined,
-  Grid3x3,
-  InfoOutlined,
-  Pause,
   PlayArrow,
   PlayArrowOutlined,
   ViewComfyOutlined,
-  ViewModuleOutlined,
   ViewQuiltOutlined,
 } from "@mui/icons-material";
 import {
   Box,
-  Button,
   CardMedia,
   IconButton,
   ImageList,
   ImageListItem,
   ImageListItemBar,
-  ListSubheader,
   Typography,
   lighten,
 } from "@mui/material";
-import { DefaultObjectsPreview } from "../../../types";
-import {
-  FC,
-  JSXElementConstructor,
-  Key,
-  ReactElement,
-  ReactNode,
-  ReactPortal,
-  useState,
-} from "react";
+import { DefaultObjectsPreview, JomoNavigation, Page } from "../../../types";
+import { FC, useState } from "react";
+import nextPage from "../../../util";
 interface MajorProp {
   data: DefaultObjectsPreview[] | null;
+  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>
+  nav: JomoNavigation
 }
-const FeaturedPlaylist: FC<MajorProp> = ({ data }) => {
+const FeaturedPlaylist: FC<MajorProp> = ({ data, setNav, nav }) => {
   if (data == null) {
     return <></>;
   }
@@ -59,6 +47,10 @@ const FeaturedPlaylist: FC<MajorProp> = ({ data }) => {
               "& :hover": { background: lighten("#242424", 0.05) },
               transition: "1 ease-in-out 0.3s",
               cursor: "pointer",
+            }}
+            onClick={() => {
+              let page: Page = { header: datum };
+              nextPage(nav, setNav, page);
             }}
           >
             <Box
@@ -109,14 +101,25 @@ const FeaturedPlaylist: FC<MajorProp> = ({ data }) => {
   );
 };
 
-const MainPlaylistCollage: FC<MajorProp> = ({ data }) => {
+const MainPlaylistCollage: FC<MajorProp> = ({
+  data,
+  setNav,
+  nav
+}) => {
   let [mansory, setMansory] = useState(true);
   if (data == null) {
     return <></>;
   } else {
     return (
       <Box sx={{ margin: "12px 0" }}>
-        <Box sx={{display: "flex", flexDirection: "row", flexWrap:"nowrap", placeContent: "space-between"}}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row",
+            flexWrap: "nowrap",
+            placeContent: "space-between",
+          }}
+        >
           <Typography variant="h5" sx={{ fontWeight: "900" }}>
             Gallery
           </Typography>
@@ -145,6 +148,10 @@ const MainPlaylistCollage: FC<MajorProp> = ({ data }) => {
               key={index}
               cols={item.col || 1}
               rows={item.row || 1}
+              onClick={() => {
+                let page: Page = { header: item };
+                nextPage(nav, setNav, page );
+              }}
             >
               <img
                 {...srcset(item.image[0].url, 121, item.row, item.col)}
@@ -166,7 +173,9 @@ const MainPlaylistCollage: FC<MajorProp> = ({ data }) => {
                     .map((e, _) => {
                       e.name;
                     })
-                    .join(", ") || "Music Playlist Information"
+                    .join(", ") ||
+                  item.description ||
+                  "Music Playlist Information"
                 }
                 actionIcon={
                   <IconButton

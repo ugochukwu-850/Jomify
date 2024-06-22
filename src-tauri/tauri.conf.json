@@ -7,7 +7,7 @@
     "withGlobalTauri": true
   },
   "package": {
-    "productName": "jomo",
+    "productName": "Jomo App",
     "version": "0.0.0"
   },
   "tauri": {
@@ -20,7 +20,7 @@
       "http": {
         "all": true,
         "request": true,
-        "scope": [ "https://*"]
+        "scope": ["https://*"]
       }
       
     },
@@ -33,12 +33,12 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
     },
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.tauri.dev",
+      "identifier": "com.tauri.prod",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",

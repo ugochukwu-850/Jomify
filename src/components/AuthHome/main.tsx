@@ -6,7 +6,6 @@ import {
   CardMedia,
   Divider,
   Stack,
-  SvgIcon,
   ThemeProvider,
   Typography,
 } from "@mui/material";
@@ -99,7 +98,7 @@ const AuthPage = () => {
           <Box className={styles.signupbts}>
             <Button
               variant="outlined"
-              startIcon={<SvgIcon component={SpotifyIcon} inheritViewBox />}
+              startIcon={<SpotifyIcon/>}
               onClick={() => {
                 InitiateAuthenticationFlow();
               }}
@@ -111,7 +110,7 @@ const AuthPage = () => {
             <Button
               variant="outlined"
               startIcon={
-                <SvgIcon component={YouTubeMusicIcon} inheritViewBox />
+                <YouTubeMusicIcon/>
               }
             >
               <span>
