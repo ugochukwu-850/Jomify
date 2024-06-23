@@ -44,16 +44,19 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
           <IconButton
             className={styles.headerIconButton}
             onClick={() => {
-              nextPage(nav, setNav);
+              previousPage(nav, setNav);
             }}
+            disabled = {nav.previous? false : true}
           >
             <ArrowBackIosOutlined className={styles.headerIcon} />
           </IconButton>
           <IconButton
             className={styles.headerIconButton}
             onClick={() => {
-              previousPage(nav, setNav);
+              nextPage(nav, setNav);
             }}
+            disabled = {nav.next? false : true}
+
           >
             <ArrowForwardIosOutlined className={styles.headerIcon} />
           </IconButton>
