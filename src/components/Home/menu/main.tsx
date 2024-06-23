@@ -50,7 +50,7 @@ const Main: FC<mainProp> = ({ props }): JSX.Element => {
             <MainPlaylistDiver data={props.gallery} setNav={setNav} nav={nav} />
           </>
         ) : (
-          <DetailPageView page={nav.data} setNav={setNav} />
+          <DetailPageView nav={nav} setNav={setNav} />
         )}
       </Box>
     </Box>

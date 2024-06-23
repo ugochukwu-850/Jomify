@@ -12,8 +12,8 @@ import {
   Typography,
   colors,
 } from "@mui/material";
-import { FC, useState } from "react";
-import { JomoNavigation, Page } from "../../../types";
+import { FC, useEffect, useState } from "react";
+import { JomoNavigation, Page, Track } from "../../../types";
 import {
   ImportContacts,
   PlayArrow,
@@ -24,11 +24,42 @@ import {
 } from "@mui/icons-material";
 import SpotifyIcon from "../../../assets/spotify.svg";
 interface PageProps {
-  page: Page;
+  nav: JomoNavigation;
   setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>;
 }
 
-const DetailPageView: FC<PageProps> = ({ page, setNav }) => {
+const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
+  let { data, next, previous } = nav;
+  let page = data;
+  useEffect(() => {
+    const getTracks = async () => {
+      if (!data?.tracks) {
+        console.log("Running detail [age view ");
+        setNav({
+          ...nav,
+          data: {
+            ...data,
+            tracks: Array(36).fill({
+              artist: {
+                href: "",
+                id: "id",
+                name: "AyoMaff",
+                type: "track",
+                uri: "fakeuri",
+              },
+              duration: 200,
+              id: "id",
+              name: "Dealer",
+              popularity: 90,
+              isPlaying: false,
+            } as Track),
+          } as Page,
+        });
+      }
+      return;
+    };
+    getTracks();
+  }, []);
   return (
     <Box>
       {/* Header displayer */}
@@ -45,7 +76,7 @@ const DetailPageView: FC<PageProps> = ({ page, setNav }) => {
       >
         <CardMedia
           component={"img"}
-          image={page.header.image[0].url}
+          image={page?.header.image[0].url}
           sx={{ width: "240px", borderRadius: "12px" }}
         />
         <Box
@@ -57,19 +88,19 @@ const DetailPageView: FC<PageProps> = ({ page, setNav }) => {
             margin: "auto 0",
           }}
         >
-          <Typography variant="body2">{page.header.object_type}</Typography>
-          <Typography variant="h2">{page.header.name}</Typography>
+          <Typography variant="body2">{page?.header.object_type}</Typography>
+          <Typography variant="h2">{page?.header.name}</Typography>
           <Typography variant="body1" sx={{ fontWeight: 500, color: "grey" }}>
-            {page.header.description}
+            {page?.header.description}
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "row" }}>
             <SpotifyIcon />
             <Typography
               variant="body2"
-              sx={{ textAlign: "baseline", margin: "auto 12px"}}
+              sx={{ textAlign: "baseline", margin: "auto 12px" }}
             >
               {"Created By "}
-              {page.header.artist
+              {page?.header.artist
                 .map((e, i) => {
                   console.log(e.name);
                   return e.name;
@@ -118,473 +149,78 @@ const DetailPageView: FC<PageProps> = ({ page, setNav }) => {
           <Table stickyHeader aria-label="sticky table">
             <TableHead>
               <TableRow>
-                <TableCell key="1" align="left" style={{ minWidth: 5 }}>
+                <TableCell key="#" align="left" style={{ minWidth: 5 }}>
                   <Typography>#</Typography>
                 </TableCell>
-                <TableCell key="1" align="left" style={{ minWidth: 100 }}>
+                <TableCell key="1header" align="left" style={{ minWidth: 100 }}>
                   <Typography>Title</Typography>
                 </TableCell>
-                <TableCell key="1" align="left" style={{ minWidth: 100 }}>
+                <TableCell key="2header" align="left" style={{ minWidth: 100 }}>
                   <Typography>Album</Typography>
                 </TableCell>
-                <TableCell key="1" align="left" style={{ minWidth: 100 }}>
+                <TableCell key="3header" align="left" style={{ minWidth: 100 }}>
                   <Typography>Date Added</Typography>
                 </TableCell>
-                <TableCell key="1" align="left" style={{ minWidth: 100 }}>
+                <TableCell key="4header" align="left" style={{ minWidth: 100 }}>
                   <PunchClock />
                 </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-            <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow> <TableRow sx={{"&:hover": {cursor: "pointer"}}}>
-                <HoverableTableCell count={1}/>
-                <TableCell
-                  sx={{
-                    display: "flex",
-                    justifyContent: "start",
-                    gap: ".5em",
-                    minWidth: 100,
-                  }}
-                  style={{ minWidth: 100 }}
-                >
-                  <Card sx={{ background: "transparent" }} elevation={0}>
-                    <CardMedia
-                      component={"img"}
-                      sx={{ width: "48px", rowGap: ".5em" }}
-                      image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
-                    />
-                  </Card>
-                  <Box>
-                    <Typography>Dealer</Typography>
-                    <Typography variant="body1" sx={{color: colors.grey[700], fontWeight: "500"}}>AyoMaff FireBoy and DMW</Typography>
-                  </Box>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}} >Dealer</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>{new Date().toUTCString()}</Typography>
-                </TableCell>
-                <TableCell style={{ minWidth: 100 }}>
-                  <Typography sx={{color: "grey", fontWeight: "500"}}>3:00</Typography>
-                </TableCell>
-              </TableRow>
+              {page?.tracks?.map((item, index) => {
+                return (
+                  <TableRow
+                    sx={{
+                      "&:hover": { cursor: "pointer" },
+                      "& .MuiTableRow-root :hover": { background: "grey" },
+                    }}
+                    key={index}
+                  >
+                    <HoverableTableCell count={index+1} />
+                    <TableCell
+                      sx={{
+                        display: "flex",
+                        justifyContent: "start",
+                        gap: ".5em",
+                        minWidth: 100,
+                      }}
+                      style={{ minWidth: 100 }}
+                    >
+                      <Card sx={{ background: "transparent" }} elevation={0}>
+                        <CardMedia
+                          component={"img"}
+                          sx={{ width: "48px", rowGap: ".5em" }}
+                          image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
+                        />
+                      </Card>
+                      <Box>
+                        <Typography>Dealer</Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{ color: colors.grey[700], fontWeight: "500" }}
+                        >
+                          AyoMaff FireBoy and DMW
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell style={{ minWidth: 100 }}>
+                      <Typography sx={{ color: "grey", fontWeight: "500" }}>
+                        Dealer
+                      </Typography>
+                    </TableCell>
+                    <TableCell style={{ minWidth: 100 }}>
+                      <Typography sx={{ color: "grey", fontWeight: "500" }}>
+                        {new Date().toUTCString()}
+                      </Typography>
+                    </TableCell>
+                    <TableCell style={{ minWidth: 100 }}>
+                      <Typography sx={{ color: "grey", fontWeight: "500" }}>
+                        3:00
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
@@ -593,9 +229,9 @@ const DetailPageView: FC<PageProps> = ({ page, setNav }) => {
   );
 };
 interface HVC {
-  count: number
+  count: number;
 }
-const HoverableTableCell: FC<HVC> = ({count}) => {
+const HoverableTableCell: FC<HVC> = ({ count }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   const handleMouseEnter = () => {

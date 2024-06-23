@@ -85,7 +85,7 @@ interface Image {
   width?: number;
 }
 
-interface Track {
+export interface Track {
   name: string;
   duration: number;
   isPlaying?: boolean;
