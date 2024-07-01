@@ -20,6 +20,8 @@ thiserror = "1.0.61"
 anyhow = "1.0.86"
 sled = "0.34.7"
 chrono = { version = "0.4.38", features = ["serde"] }
+rodio = "0.18.1"
+rusty_ytdl = "0.7.2"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

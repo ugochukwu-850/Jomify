@@ -21,8 +21,10 @@
         "all": true,
         "request": true,
         "scope": ["https://*"]
+      },
+      "path": {
+        "all": true
       }
-      
     },
   
     "windows": [

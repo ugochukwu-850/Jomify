@@ -62,7 +62,6 @@ pub struct Image {
 //     pub uri: String,
 // }
 
-
 #[derive(Deserialize, Serialize, Debug, Clone)]
 
 pub struct Artist {
@@ -76,15 +75,24 @@ pub struct Artist {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-
 pub struct Tracks {
     pub href: String,
     pub total: u32,
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct TrackDetail {
+    pub name: String,
+    #[serde(alias = "duration_ms")]
+    pub duration: i16,
+    pub album: AlbumItem,
+    pub artists: Vec<Artist>,
+    pub url: String,
+    pub id: String,
+    pub popularity: i32,
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-
 pub struct NewReleaseAlbumResponse {
     pub albums: Albums,
 }
@@ -119,7 +127,6 @@ pub struct AlbumItem {
     pub uri: String,
 }
 
-
 #[derive(Deserialize, Serialize, Debug, Clone)]
 
 pub struct UserAlbumResponse {
@@ -136,4 +143,80 @@ pub struct UserAlbumResponse {
 pub struct UserAlbumItem {
     pub added_at: String,
     pub album: AlbumItem,
+}
+
+// Details for track response
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct PlaylistTrackItemsResponse {
+    pub items: Vec<PlaylistTrackItemDetail>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct PlaylistTrackItemDetail {
+    pub track: CoreTrackDetail,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CoreTrackDetail {
+    pub album: Option<AlbumItem>,
+    pub artists: Vec<Artist>,
+    pub name: String,
+    pub id: String,
+    pub duration_ms: i32,
+    pub href: String,
+    pub popularity: i32,
+    #[serde(alias = "type")]
+    pub object_type: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct AlbumTrackDetail {
+    pub artists: Vec<Artist>,
+    pub name: String,
+    pub id: String,
+    pub duration_ms: i32,
+    pub href: String,
+    #[serde(alias="type")]
+    pub object_type: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AlbumTrackItemResponse {
+    pub items: Vec<AlbumTrackDetail>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TrackItemsDetails {
+    pub items: Vec<AlbumTrackDetail>,
+}
+
+impl AlbumTrackItemResponse {
+    pub fn track_details(&self) -> Vec<CoreTrackDetail> {
+        self
+            .items
+            .iter()
+            .map(|d| {
+                let d = d.clone();
+                CoreTrackDetail {
+                    album: None,
+                    artists: d.artists,
+                    name: d.name,
+                    id: d.id,
+                    duration_ms: d.duration_ms,
+                    href: d.href,
+                    popularity: 0,
+                    object_type: d.object_type,
+                }
+            })
+            .collect()
+    }
+}
+
+impl PlaylistTrackItemsResponse {
+    pub fn track_details(&self) -> Vec<CoreTrackDetail> {
+        self.items.iter().map(|data| {
+            data.clone().track
+        }).collect()
+    }
 }

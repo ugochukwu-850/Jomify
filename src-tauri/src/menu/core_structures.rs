@@ -3,9 +3,15 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::fmt::format;
 
+use crate::{menu::gear_structures::{AlbumTrackItemResponse, PlaylistTrackItemsResponse}, AppState};
+
 use super::{
+    auth_structures::User,
     errors::MyError,
-    gear_structures::{Albums, Artist, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse, PlaylistItem, Playlists},
+    gear_structures::{
+        Albums, Artist, CoreTrackDetail, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse,
+        PlaylistItem, Playlists,
+    },
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -62,7 +68,9 @@ impl HomeResponse {
         let simple_featured_pl: Vec<DefaultObjectsPreview> =
             items.into_iter().map(|f| f.into()).collect();
 
-        let NewReleaseAlbumResponse { albums: Albums {items, total} } = Self::get_new_release_albums(&access_token).await?;
+        let NewReleaseAlbumResponse {
+            albums: Albums { items, total },
+        } = Self::get_new_release_albums(&access_token).await?;
 
         // convert the album to displayable type
         let new_albums: Vec<DefaultObjectsPreview> = items
@@ -101,8 +109,6 @@ impl HomeResponse {
             featured_playlists,
             albums: None,
         })
-
-
     }
 
     async fn get_featured_playlists(
@@ -123,9 +129,9 @@ impl HomeResponse {
                 let text = &response.text().await?;
                 if status {
                     // parse the text to featured playlist
-                    println!("{}", text);
+                    println!("Text gotten from request for data length => {}", text.len());
                     let items: FeaturedPlaylistRequest = serde_json::from_str(text)?;
-                    println!("{items:?}");
+                    println!("Gotten response | Response message =>  {:?}", items.message);
                     return Ok(items);
                 }
                 Err(MyError::Custom(text.to_owned()))
@@ -144,7 +150,9 @@ impl HomeResponse {
         }
     }
 
-    async fn get_new_release_albums(access_token: &String) -> Result<NewReleaseAlbumResponse, MyError> {
+    async fn get_new_release_albums(
+        access_token: &String,
+    ) -> Result<NewReleaseAlbumResponse, MyError> {
         let r_client = Client::new();
         let queries = [("offset", "0"), ("limit", "20")];
 
@@ -160,9 +168,9 @@ impl HomeResponse {
                 let text = &response.text().await?;
                 if status {
                     // parse the text to featured playlist
-                    println!("{}", text);
+                    println!("Got text {}", text.len());
                     let items: NewReleaseAlbumResponse = serde_json::from_str(text)?;
-                    println!("{items:?}");
+                    println!("Got {:?} albums", items.albums.items.len());
                     return Ok(items);
                 }
 
@@ -172,6 +180,86 @@ impl HomeResponse {
                 "Error from reqesting the reource for albums: {}",
                 e.to_string()
             ))),
+        }
+    }
+}
+
+impl User {
+    pub async fn home(&self, db: tauri::State<'_, sled::Db>) -> Result<HomeResponse, MyError> {
+        HomeResponse::new(self.get_auth_creds(db).await?.access_token).await
+    }
+
+    pub async fn get_tracks(
+        &self,
+        object_id: String,
+        object_type: String,
+        db: tauri::State<'_, sled::Db>,
+    ) -> Result<Vec<CoreTrackDetail>, MyError> {
+        let access_token = self.get_auth_creds(db).await?.access_token;
+        let client = Client::new();
+        let queries = [("offset", "0"), ("limit", "50")];
+
+        match object_type.as_str() {
+            "album" | "single" | "compilation" => {
+                // make request and parse to list of tracks for albums
+                match client
+                    .get(format!(
+                        "https://api.spotify.com/v1/albums/{object_id}/tracks"
+                    ))
+                    .query(&queries)
+                    .bearer_auth(access_token)
+                    .send()
+                    .await
+                {
+                    Ok(response) => {
+                        let status = response.status().is_success();
+                        let text = &response.text().await?;
+                        if status {
+                            // parse the text to featured playlist
+                            let items: AlbumTrackItemResponse = serde_json::from_str(text)?;
+                            return Ok(items.track_details());
+                        }
+
+                        Err(MyError::Custom(text.to_owned()))
+                    }
+                    Err(e) => Err(MyError::Custom(format!(
+                        "Error from reqesting the tracks for albums: {}",
+                        e.to_string()
+                    ))),
+                }
+            }
+            "playlist" => {
+                match client
+                    .get(format!(
+                        "https://api.spotify.com/v1/playlists/{object_id}/tracks"
+                    ))
+                    .query(&queries)
+                    .bearer_auth(access_token)
+                    .send()
+                    .await
+                {
+                    Ok(response) => {
+                        let status = response.status().is_success();
+                        let text = &response.text().await?;
+                        if status {
+                            // parse the text to featured playlist
+                            println!("Text response length {}", text.len());
+                            let items: PlaylistTrackItemsResponse = serde_json::from_str(text)?;
+                            println!("Playlist track response response lenght {:?}", items.items.len());
+                            return Ok(items.track_details());
+                        }
+
+                        Err(MyError::Custom(text.to_owned()))
+                    }
+                    Err(e) => Err(MyError::Custom(format!(
+                        "Error from reqesting the tracks for albums: {}",
+                        e.to_string()
+                    ))),
+                }
+            }
+            _ => {
+                todo!()
+            }
         }
     }
 }
