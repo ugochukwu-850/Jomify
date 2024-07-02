@@ -8,12 +8,12 @@ const homeTheme = createTheme({
       main: colors.common.white,
     },
     secondary: {
-      main: colors.green[900],
+      main: colors.grey[700],
     },
     text: {
       primary: colors.common.white,
-      secondary: colors.green[800],
-      disabled: colors.grey[700],
+      secondary: colors.grey[600],
+      disabled: colors.red[700],
     },
     background: {
       default: colors.common.black,
@@ -27,11 +27,12 @@ const homeTheme = createTheme({
         body: {
           "&::-webkit-scrollbar, & *::-webkit-scrollbar": {
             backgroundColor: "transparent",
+            width: "4px",
           },
           "&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb": {
-            borderRadius: 12,
             minHeight: 12,
             border: "1px solid #2b2b2b",
+            background: "#2b2b2b"
           },
           "&::-webkit-scrollbar-thumb:focus, & *::-webkit-scrollbar-thumb:focus": {
             border: "1px solid #2b2b2b",

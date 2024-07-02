@@ -11,18 +11,22 @@ import {
   TableRow,
   Typography,
   colors,
+  Link,
 } from "@mui/material";
 import { FC, useEffect, useState } from "react";
-import { JomoNavigation, Page, Track } from "../../../types";
+import { Album, JomoNavigation, Page, Track } from "../../../types";
 import {
   ImportContacts,
   PlayArrow,
   PlayCircleFilledOutlined,
+  PlaylistAdd,
   PunchClock,
   ViewAgendaSharp,
   ViewListOutlined,
 } from "@mui/icons-material";
 import SpotifyIcon from "../../../assets/spotify.svg";
+import { formatDuration, formatHeadDuration, play_tracks } from "../../../util";
+import { invoke } from "@tauri-apps/api/tauri";
 interface PageProps {
   nav: JomoNavigation;
   setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>;
@@ -33,30 +37,26 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
   let page = data;
   useEffect(() => {
     const getTracks = async () => {
-      if (!data?.tracks) {
-        console.log("Running detail [age view ");
-        setNav({
-          ...nav,
-          data: {
-            ...data,
-            tracks: Array(36).fill({
-              artist: {
-                href: "",
-                id: "id",
-                name: "AyoMaff",
-                type: "track",
-                uri: "fakeuri",
-              },
-              duration: 200,
-              id: "id",
-              name: "Dealer",
-              popularity: 90,
-              isPlaying: false,
-            } as Track),
-          } as Page,
-        });
+      try {
+        if (!data?.tracks) {
+          let [o_id, o_type] = [page?.header.id, page?.header.object_type];
+          console.log("Running detail page view ", o_id, o_type);
+          let tracks: Track[] = await invoke("get_tracks", {
+            object: o_type,
+            id: o_id,
+          });
+          setNav({
+            ...nav,
+            data: {
+              ...data,
+              tracks,
+            } as Page,
+          });
+        }
+        return;
+      } catch (error) {
+        console.log(error);
       }
-      return;
     };
     getTracks();
   }, []);
@@ -100,12 +100,10 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
               sx={{ textAlign: "baseline", margin: "auto 12px" }}
             >
               {"Created By "}
-              {page?.header.artist
-                .map((e, i) => {
-                  console.log(e.name);
-                  return e.name;
-                })
-                .join(" ")}
+              {page?.header.artist.map((e, i) => {
+                console.log(e.name);
+                return <Link href={e.uri}>{e.name}</Link>;
+              })}
             </Typography>
             <Typography variant="body1">
               {page?.tracks ? `${page?.tracks?.length} songs` : ""}
@@ -116,14 +114,15 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
                 sx={{ textAlign: "center", margin: "auto 6px" }}
               >
                 About{" "}
-                {Math.floor(
-                  page?.tracks
-                    ? page.tracks.reduce((total, track) => {
-                        return total + track.duration;
-                      }, 0)
-                    : 0
-                ) / 3600}
-                {" minutes"}
+                {formatDuration(
+                  Math.floor(
+                    page?.tracks
+                      ? page.tracks.reduce((total, track) => {
+                          return total + track.duration_ms;
+                        }, 0)
+                      : 0
+                  )
+                )}
               </Typography>
             }
           </Box>
@@ -132,9 +131,70 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
       {/*Tracks Control*/}
       <Box sx={{ margin: "12px 0" }}>
         <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-          <IconButton>
-            <PlayCircleFilledOutlined sx={{ fontSize: "56px" }} />
-          </IconButton>
+          <Box>
+            <IconButton>
+              <PlayCircleFilledOutlined
+                sx={{
+                  fontSize: "56px",
+                  "& :hover": { background: "green", cursor: "pointer" },
+                }}
+                onClick={async () => {
+                  console.log("Clicked");
+                  page?.tracks
+                    ? await play_tracks(
+                        page.tracks.map((track, _) => {
+                          return {
+                            ...track,
+                            album: !track.album
+                              ? ({
+                                  album_type: page.header.object_type,
+                                  artists: page.header.artist,
+                                  href: page.header.href,
+                                  id: page.header.id,
+                                  images: page.header.image,
+                                  name: page.header.name,
+                                  release_date: page.header.released_at,
+                                } as Album)
+                              : track.album,
+                          } as Track;
+                        }),
+                        false,
+                        false
+                      )
+                    : false;
+                }}
+              />
+            </IconButton>
+            <IconButton
+              onClick={async () => {
+                console.log("Clicked");
+                page?.tracks
+                  ? await play_tracks(
+                      page.tracks.map((track, _) => {
+                        return {
+                          ...track,
+                          album: !track.album
+                            ? ({
+                                album_type: page.header.object_type,
+                                artists: page.header.artist,
+                                href: page.header.href,
+                                id: page.header.id,
+                                images: page.header.image,
+                                name: page.header.name,
+                                release_date: page.header.released_at,
+                              } as Album)
+                            : track.album,
+                        } as Track;
+                      }),
+                      true,
+                      false
+                    )
+                  : false;
+              }}
+            >
+              <PlaylistAdd />
+            </IconButton>
+          </Box>
           <IconButton sx={{ height: "max-content" }}>
             <ViewListOutlined />
           </IconButton>
@@ -167,16 +227,38 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {page?.tracks?.map((item, index) => {
+              {page?.tracks?.map((track, index) => {
                 return (
                   <TableRow
                     sx={{
                       "&:hover": { cursor: "pointer" },
                       "& .MuiTableRow-root :hover": { background: "grey" },
                     }}
+                    onClick={async () => {
+                      await play_tracks(
+                        [
+                          {
+                            ...track,
+                            album: !track.album
+                              ? ({
+                                  album_type: page.header.object_type,
+                                  artists: page.header.artist,
+                                  href: page.header.href,
+                                  id: page.header.id,
+                                  images: page.header.image,
+                                  name: page.header.name,
+                                  release_date: page.header.released_at,
+                                } as Album)
+                              : track.album,
+                          } as Track,
+                        ],
+                        true,
+                        true
+                      );
+                    }}
                     key={index}
                   >
-                    <HoverableTableCell count={index+1} />
+                    <HoverableTableCell count={index + 1} />
                     <TableCell
                       sx={{
                         display: "flex",
@@ -188,34 +270,53 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
                     >
                       <Card sx={{ background: "transparent" }} elevation={0}>
                         <CardMedia
+                          loading="lazy"
                           component={"img"}
                           sx={{ width: "48px", rowGap: ".5em" }}
-                          image="https://i.scdn.co/image/ab67706f0000000209acda13f2655f4907258bf4"
+                          image={
+                            track.album
+                              ? track.album.images[0].url
+                              : page.header.image[0].url
+                          }
                         />
                       </Card>
                       <Box>
-                        <Typography>Dealer</Typography>
-                        <Typography
-                          variant="body1"
-                          sx={{ color: colors.grey[700], fontWeight: "500" }}
-                        >
-                          AyoMaff FireBoy and DMW
+                        <Typography>{track.name}</Typography>
+                        <Typography variant="body1">
+                          {track.artists.map((e, i) => {
+                            return (
+                              <Link
+                                sx={{
+                                  color: colors.grey[700],
+                                  fontWeight: "500",
+                                  margin: "auto 4px",
+                                }}
+                                href={e.href}
+                              >
+                                {e.name}
+                              </Link>
+                            );
+                          })}
                         </Typography>
                       </Box>
                     </TableCell>
                     <TableCell style={{ minWidth: 100 }}>
                       <Typography sx={{ color: "grey", fontWeight: "500" }}>
-                        Dealer
+                        {track.album ? track.album.name : page.header.name}
                       </Typography>
                     </TableCell>
                     <TableCell style={{ minWidth: 100 }}>
                       <Typography sx={{ color: "grey", fontWeight: "500" }}>
-                        {new Date().toUTCString()}
+                        {track.album
+                          ? track.album.release_date
+                          : page.header.released_at
+                          ? page.header.released_at
+                          : new Date().toLocaleTimeString()}
                       </Typography>
                     </TableCell>
                     <TableCell style={{ minWidth: 100 }}>
                       <Typography sx={{ color: "grey", fontWeight: "500" }}>
-                        3:00
+                        {formatDuration(track.duration_ms)}
                       </Typography>
                     </TableCell>
                   </TableRow>
@@ -252,4 +353,5 @@ const HoverableTableCell: FC<HVC> = ({ count }) => {
     </TableCell>
   );
 };
+
 export default DetailPageView;

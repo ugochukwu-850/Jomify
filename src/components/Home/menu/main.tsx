@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { AppBar, Box, Grid, Typography } from "@mui/material";
 import JomoAppBar from "./appbar";
 import FeaturedPlaylist, { MainPlaylistDiver } from "./content_menu";
 import {
@@ -6,23 +6,21 @@ import {
   Page as DetailPage,
   JomoNavigation,
 } from "../../../types";
-import { FC, useState } from "react";
+import { FC, useContext, useEffect, useState } from "react";
 import DetailPageView from "./page_view";
 import nextPage from "../../../util";
+import { RightSideMenuContext } from "..";
 interface mainProp {
   props: HomeResponse | null;
+  nav: JomoNavigation,
+  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>
 }
 
-const Main: FC<mainProp> = ({ props }): JSX.Element => {
+const Main: FC<mainProp> = ({ props, nav, setNav}): JSX.Element => {
   if (props == null) {
     return <></>;
   }
-  let [nav, setNav] = useState<JomoNavigation>({
-    previous: null,
-    next: null,
-    data: null
-  });
-
+  let context = useContext(RightSideMenuContext);
   return (
     <Box
       sx={{

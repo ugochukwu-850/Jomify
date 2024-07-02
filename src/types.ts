@@ -71,7 +71,7 @@ export interface DefaultObjectsPreview {
   released_at?: string;
 }
 
-interface Artist {
+export interface Artist {
   href: string;
   id: string;
   name: string;
@@ -84,15 +84,29 @@ interface Image {
   url: string;
   width?: number;
 }
-
+export interface Album {
+  album_type: string,
+  artists: Artist[] | Artist,
+  href: string,
+  id: string,
+  images: Image[],
+  name: string,
+  release_date: string,
+  // pub release_date_precision: string,
+  // total_tracks?: number,
+  // pub type_: string,
+  // uri: string,
+}
 export interface Track {
   name: string;
-  duration: number;
+  duration_ms: number;
   isPlaying?: boolean;
-  artist: Artist;
-  url?: URL;
+  album?: Album,
+  artists: Artist[];
+  href: URL;
   id: string;
   popularity: number;
+  object_type: string;
 
   play?: () => {};
 }
@@ -100,6 +114,7 @@ export interface Track {
 export interface Page {
   header: DefaultObjectsPreview;
   tracks?: Track[];
+  auto_play?: boolean,
 }
 
 export interface JomoNavigation {
@@ -109,3 +124,26 @@ export interface JomoNavigation {
 }
 
 
+export interface PlayingAction {
+  playing: boolean
+}
+
+export interface QueueSideMenuData {
+  header: string,
+  tracks: Track[]
+}
+
+export interface LyricsAndVideo {
+  header: string
+  video_src: string,
+  lyrics: string[]
+}
+export interface RightSideMenu {
+  open: boolean,
+  context: QueueSideMenuData
+}
+
+export interface QueueMenuContext {
+  data: RightSideMenu,
+  setData: React.Dispatch<React.SetStateAction<RightSideMenu>>
+}
