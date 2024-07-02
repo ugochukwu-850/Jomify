@@ -9,7 +9,7 @@ use super::{
     auth_structures::User,
     errors::MyError,
     gear_structures::{
-        Albums, Artist, CoreTrackDetail, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse,
+        Albums, Artist, Track, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse,
         PlaylistItem, Playlists,
     },
 };
@@ -194,7 +194,7 @@ impl User {
         object_id: String,
         object_type: String,
         db: tauri::State<'_, sled::Db>,
-    ) -> Result<Vec<CoreTrackDetail>, MyError> {
+    ) -> Result<Vec<Track>, MyError> {
         let access_token = self.get_auth_creds(db).await?.access_token;
         let client = Client::new();
         let queries = [("offset", "0"), ("limit", "50")];

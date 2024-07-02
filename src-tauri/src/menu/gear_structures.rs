@@ -84,7 +84,7 @@ pub struct Tracks {
 pub struct TrackDetail {
     pub name: String,
     #[serde(alias = "duration_ms")]
-    pub duration: i16,
+    pub duration: u128,
     pub album: AlbumItem,
     pub artists: Vec<Artist>,
     pub url: String,
@@ -121,10 +121,7 @@ pub struct AlbumItem {
     pub images: Vec<Image>,
     pub name: String,
     pub release_date: String,
-    // pub release_date_precision: String,
-    pub total_tracks: u32,
-    // pub type_: String,
-    pub uri: String,
+
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -154,16 +151,16 @@ pub struct PlaylistTrackItemsResponse {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct PlaylistTrackItemDetail {
-    pub track: CoreTrackDetail,
+    pub track: Track,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct CoreTrackDetail {
+pub struct Track {
     pub album: Option<AlbumItem>,
     pub artists: Vec<Artist>,
     pub name: String,
     pub id: String,
-    pub duration_ms: i32,
+    pub duration_ms: u128,
     pub href: String,
     pub popularity: i32,
     #[serde(alias = "type")]
@@ -175,7 +172,7 @@ pub struct AlbumTrackDetail {
     pub artists: Vec<Artist>,
     pub name: String,
     pub id: String,
-    pub duration_ms: i32,
+    pub duration_ms: u128,
     pub href: String,
     #[serde(alias="type")]
     pub object_type: String,
@@ -192,13 +189,13 @@ pub struct TrackItemsDetails {
 }
 
 impl AlbumTrackItemResponse {
-    pub fn track_details(&self) -> Vec<CoreTrackDetail> {
+    pub fn track_details(&self) -> Vec<Track> {
         self
             .items
             .iter()
             .map(|d| {
                 let d = d.clone();
-                CoreTrackDetail {
+                Track {
                     album: None,
                     artists: d.artists,
                     name: d.name,
@@ -214,7 +211,7 @@ impl AlbumTrackItemResponse {
 }
 
 impl PlaylistTrackItemsResponse {
-    pub fn track_details(&self) -> Vec<CoreTrackDetail> {
+    pub fn track_details(&self) -> Vec<Track> {
         self.items.iter().map(|data| {
             data.clone().track
         }).collect()

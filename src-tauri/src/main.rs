@@ -1,15 +1,11 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{
-    path::PathBuf,
-    sync::RwLock,
-};
+use std::{path::PathBuf, sync::RwLock};
 
 use menu::{
-    auth_structures::User,
-    commands::play_queue,
-    utils::generate_search_query,
+    auth_structures::User, commands::play_queue, gear_structures::Track,
+    utils::{generate_audio_path, generate_search_query, generate_video_path},
 };
 use rodio::{Decoder, OutputStream, Sink};
 use serde::{Deserialize, Serialize};
@@ -26,21 +22,10 @@ pub struct AppState {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct QueTrack {
-    pub id: String,
-    pub name: String,
-    pub artists_names: Vec<String>,
-    pub duration_ms: u128,
-    pub audio_path: Option<PathBuf>,
-    pub video_path: Option<PathBuf>,
-    pub image_url: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JomoQueue {
     pub head: Option<u32>,
     pub volume: f32,
-    pub que_track: Vec<QueTrack>,
+    pub que_track: Vec<Track>,
 }
 
 impl AppState {
@@ -53,21 +38,24 @@ impl AppState {
     }
 }
 
-impl QueTrack {
-    pub fn new() -> Self {
-        Self {
-            id: String::new(),
-            name: String::new(),
-            artists_names: Vec::new(),
-            duration_ms: 0,
-            audio_path: None,
-            video_path: None,
-            image_url: Some(String::new()),
-        }
-    }
-
+impl Track {
     pub fn search_query(&self) -> String {
-        generate_search_query(&self.name, &self.artists_names)
+        generate_search_query(
+            &self.name,
+            &self.artists.iter().map(|f| f.name.to_owned()).collect(),
+        )
+    }
+    pub fn audio_path(&self) -> PathBuf {
+        generate_audio_path(
+            &self.name,
+            &self.artists.iter().map(|f| f.name.to_owned()).collect(),
+        )
+    }
+    pub fn video_path(&self) -> PathBuf {
+        generate_video_path(
+            &self.name,
+            &self.artists.iter().map(|f| f.name.to_owned()).collect(),
+        )
     }
 }
 
@@ -116,13 +104,16 @@ fn main() {
             let window = main_window.clone();
             // process the queue in a rather archaic way
             main_window.listen("process-tracks", move |event| {
-                let payload = if let Some(e) = event.payload() {e} else {return};
-                let tracks: Vec<QueTrack> =
-                    if let Ok(e) = serde_json::from_str(payload) {
-                        e
-                    } else {
-                        return;
-                    };
+                let payload = if let Some(e) = event.payload() {
+                    e
+                } else {
+                    return;
+                };
+                let tracks: Vec<Track> = if let Ok(e) = serde_json::from_str(payload) {
+                    e
+                } else {
+                    return;
+                };
 
                 eprintln!(
                     "I have recieved the process tracks request -> Lenght {}",
@@ -154,7 +145,8 @@ fn main() {
             menu::commands::exchange_auth_code,
             menu::commands::is_authenticated,
             menu::commands::home,
-            menu::commands::add_to_queue
+            menu::commands::add_to_queue,
+            menu::commands::remove_from_playlist
         ])
         .run(tauri::generate_context!())
         .expect("An error occured while initializing!!");

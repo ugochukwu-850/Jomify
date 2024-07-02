@@ -7,13 +7,13 @@ use std::thread;
 use std::time::Duration;
 
 use crate::menu::auth_structures::{AuthCreds, MetaInfo};
-use crate::menu::utils::generate_search_query;
-use crate::{AppState, JomoQueue, QueTrack};
+use crate::menu::utils::{generate_audio_path, wait_read_file};
+use crate::{AppState, JomoQueue};
 
 use super::auth_structures::{Settings, SupportedApps, User};
 use super::core_structures::HomeResponse;
 use super::errors::MyError;
-use super::gear_structures::{CoreTrackDetail, FeaturedPlaylistRequest, Tracks};
+use super::gear_structures::{FeaturedPlaylistRequest, Track, Tracks};
 use super::utils::get_user_with_db;
 
 use anyhow::anyhow;
@@ -157,12 +157,8 @@ pub async fn get_tracks(
     id: String,
     db: tauri::State<'_, sled::Db>,
     app_state: tauri::State<'_, AppState>,
-) -> Result<Vec<CoreTrackDetail>, MyError> {
-    let user = app_state
-        .user
-        .lock()
-        .unwrap()
-        .clone();
+) -> Result<Vec<Track>, MyError> {
+    let user = app_state.user.lock().unwrap().clone();
     if let Some(user) = user {
         return user.get_tracks(id, object, db).await;
     }
@@ -172,7 +168,7 @@ pub async fn get_tracks(
 
 pub async fn process_queue(
     config: &tauri::Config,
-    tracks: Vec<QueTrack>,
+    tracks: Vec<Track>,
     window: Window,
 ) -> Result<(), MyError> {
     let root_path = app_data_dir(config).expect("Failing to get app data dir");
@@ -195,12 +191,14 @@ pub async fn process_queue(
 
     'mainloop: for track in tracks {
         // get the query name
-        let search_name = track.search_query();
-        let video_path = video_root_path.join(format!("{}.mp4", search_name));
-        let audio_path = audio_root_path.join(format!("{}.mp3", search_name));
+        let video_path = video_root_path.join(track.video_path());
+        let audio_path = audio_root_path.join(track.audio_path());
 
-        if audio_path.exists() || video_path.exists() {
+        if audio_path.exists() && video_path.exists() {
+            println!("Found song {:?} path", audio_path.to_str());
             continue;
+        } else {
+            println!("Did not find song {:?} path", audio_path.to_str());
         }
 
         // run the search
@@ -298,6 +296,7 @@ pub fn play_queue(
     let mut loop_i = 0;
     let (_stream, stream_handle) = OutputStream::try_default().expect("Failed to find default");
     let sink = Arc::new(Sink::try_new(&stream_handle).expect("Failed to load sink "));
+    let repeat = Arc::new(RwLock::new(false));
     // start a loop on play
     let sink2 = sink.clone();
     let window1 = window.clone();
@@ -335,19 +334,35 @@ pub fn play_queue(
         let seconds = payload.parse::<f32>().unwrap_or(1.0);
         let _ = sink4.try_seek(Duration::from_secs_f32(seconds));
     });
+    let set_play_sink = sink.clone();
+    let set_play_queue = queue.clone();
+    window.listen("set-play", move |event| {
+        let payload = if let Some(e) = event.payload() {
+            match e.parse::<u32>() {
+                Ok(e) => e,
+                Err(_) => return,
+            }
+        } else {
+            return;
+        };
+        set_play_queue.write().expect("Failed to write").head = Some(payload); // Use wrapping_sub to avoid negative values
+        set_play_sink.stop();
+    });
+
     let next_sink = sink.clone();
     let next_queue = queue.clone();
     window.listen("next-previous", move |event| {
         let current_head = next_queue.read().expect("Failed to read next").head;
         if event.payload().is_some() {
-            if let Some(head) = current_head {
-                let len = next_queue.read().expect("read failed").que_track.len() as u32;
-                next_queue.write().expect("Failed to write").head =
-                    Some(head.wrapping_add(1) % len);
+            if let Some(_head) = current_head {
+                // let len = next_queue.read().expect("read failed").que_track.len() as u32;
+                // next_queue.write().expect("Failed to write").head =
+                //     Some(head.wrapping_add(1) % len);
                 next_sink.stop();
             }
         } else {
             if let Some(head) = current_head {
+                // because ones the sink is stoped it automatically updates the head by one ; Make the countback twice
                 let len = next_queue.read().expect("read failed").que_track.len() as u32;
                 next_queue.write().expect("Failed to write").head =
                     Some((head.wrapping_sub(1)) % len); // Use wrapping_sub to avoid negative values
@@ -358,6 +373,7 @@ pub fn play_queue(
             "Just toggled sink status => Playing {}",
             next_sink.is_paused()
         );
+        next_sink.play();
     });
 
     let stop_sink = sink.clone();
@@ -365,25 +381,37 @@ pub fn play_queue(
         stop_sink.stop();
     });
 
+    let repeat_clone = repeat.clone();
+    window.listen("toggle-repeat", move |_| {
+        let repeat = repeat_clone
+        .read()
+        .expect("Failed to read the repeat")
+        .clone();
+        *repeat_clone.write().expect("Failed to write lock repeat") = !repeat;
+    });
+
     loop {
         // Only if sink is playing should you try to play the next song
-        if !sink.is_paused() {
+        if !sink.is_paused() && queue.read().expect("Failed to read").que_track.len() > 0 {
             // Read the queue data
-            let (
-                head,
-                que_track_len,
-                QueTrack {
-                    id,
-                    name,
-                    artists_names,
-                    duration_ms,
-                    audio_path,
-                    video_path,
-                    image_url,
-                },
-            ) = {
+            let Track {
+                album,
+                artists,
+                name,
+                id,
+                duration_ms,
+                href,
+                popularity,
+                object_type,
+            } = {
                 let read_queue = match queue.read() {
-                    Ok(q) => q,
+                    Ok(q) => {
+                        println!(
+                            "This is what is in the queue now length: {:?}",
+                            q.que_track.len()
+                        );
+                        q
+                    }
                     Err(_) => {
                         // Emit error trying to lock queue
                         // If failed to read lock then continue
@@ -391,7 +419,7 @@ pub fn play_queue(
                     }
                 };
 
-                if read_queue.head.is_none() || read_queue.que_track.is_empty() {
+                if read_queue.que_track.is_empty() {
                     // Skip if no valid track or queue is empty
                     continue;
                 }
@@ -402,7 +430,7 @@ pub fn play_queue(
                     continue;
                 };
                 let track = &read_queue.que_track[head as usize];
-                (head, read_queue.que_track.len(), track.clone())
+                track.clone()
             };
 
             eprintln!("Loop index: {loop_i}");
@@ -410,20 +438,20 @@ pub fn play_queue(
 
             // Get the file path for the current head track
             let audio_root_path = root_path.join("media").join("audio");
-            let audio_file_path =
-                audio_root_path.join(generate_search_query(&name, &artists_names));
+            let audio_file_path = audio_root_path.join(generate_audio_path(
+                &name,
+                &artists.iter().map(|f| f.name.to_owned()).collect(),
+            ));
+            let before_wait_head = queue.read().expect("Failed to read").head.clone().unwrap();
 
-            // Read the file from memory
-            let file = match File::open(&audio_file_path) {
-                Ok(val) => val,
-                Err(e) => {
-                    eprintln!(
-                        "Error opening file: {:#?} - Waiting for 180 seconds to try again on the next data Error -> {}",
-                        audio_file_path.to_str(),
-                        e
-                    );
-                    continue;
-                }
+            let file = if let Ok(e) = wait_read_file(&audio_file_path, Some(1), Some(1), None) {
+                e
+            } else {
+                let cur_queue = queue.read().expect("Failed to read").clone();
+                queue.write().expect("Failed to write").head = Some(
+                    cur_queue.head.unwrap().wrapping_add(1) % cur_queue.que_track.len() as u32,
+                );
+                continue;
             };
 
             let file = BufReader::new(file);
@@ -436,10 +464,8 @@ pub fn play_queue(
                     continue;
                 }
             };
-
-            // Stop the current sink
+            // stop the current sink or empty it
             sink.stop();
-
             // Append the new source file
             println!("Appending source to play it");
             let duration_ms = {
@@ -453,15 +479,18 @@ pub fn play_queue(
 
             // Play the file
             // emit the current-playing-changed
-            let track = QueTrack {
-                id,
+            let track = Track {
+                album,
+                artists,
                 name,
+                id,
                 duration_ms,
-                video_path,
-                audio_path,
-                artists_names,
-                image_url,
+                href,
+                popularity,
+                object_type,
             };
+
+            sink.play();
             window
                 .emit(
                     "current-playing-changed",
@@ -469,22 +498,22 @@ pub fn play_queue(
                 )
                 .expect("Failed to emit message");
 
-            sink.play();
             let _ = window.emit(
                 "sink-playing-status",
                 json!({"playing": !sink.is_paused()}).to_string(),
             );
 
-            // Write the current head as a circular index
-            let next_head = (head + 1) % que_track_len as u32;
-
-            if let Ok(mut write_queue) = queue.write() {
-                write_queue.head = Some(next_head);
-            } else {
-                eprintln!("Failed to acquire write lock to update head");
-            }
-            // Pause thread till done playing
             sink.sleep_until_end();
+            let cur_head = queue.read().expect("Failed to read").head.clone().unwrap();
+            if cur_head == before_wait_head {
+                if *repeat.read().expect("Failed to read repeat") {
+                    continue;
+                }
+                // make emit next and wait for event listner to respond
+                let cur_queue_track_len = queue.read().expect("Failed to read").que_track.len();
+                queue.write().expect("Failed to write").head =
+                    Some(cur_head.wrapping_add(1) % cur_queue_track_len as u32);
+            }
         }
         thread::sleep(Duration::from_secs(1));
     }
@@ -492,7 +521,8 @@ pub fn play_queue(
 
 #[command]
 pub fn add_to_queue(
-    tracks: Vec<QueTrack>,
+    play: bool,
+    tracks: Vec<Track>,
     add: bool,
     app_state: tauri::State<'_, AppState>,
     window: Window,
@@ -509,23 +539,59 @@ pub fn add_to_queue(
                     "process-tracks",
                     Some(serde_json::to_string(&tracks).expect("Could not parse queue")),
                 );
-                window.trigger(
-                    "stop-sink",
-                    Some(serde_json::to_string(&tracks).expect("Could not parse queue")),
-                );
-                queue.que_track = tracks;
+
+                queue.que_track = tracks.clone();
                 queue.head = Some(0);
+                window.trigger("stop-sink", None);
                 // emit process queue as queue has be updated\
             } else {
                 window.trigger(
                     "process-tracks",
                     Some(serde_json::to_string(&tracks).expect("Could not parse queue")),
                 );
+
+                // All tracks not in quetrack
+                let cleaned_tracks: Vec<Track> = tracks
+                    .iter()
+                    .filter_map(|f| {
+                        // if track is not in queue return it
+                        if queue.que_track.iter().find(|e| e.id == f.id).is_some() {
+                            None
+                        } else {
+                            Some(f.clone())
+                        }
+                    })
+                    .collect();
+                //Extend the play list
+
                 if queue.head.is_none() {
                     queue.head = Some(0)
                 }
-                queue.que_track.extend(tracks);
-                // emit queue has been updated
+                println!("{cleaned_tracks:?}");
+                // extend the queue
+                queue.que_track.extend(cleaned_tracks.clone());
+                // emit stop to start playing if play
+                if play && queue.que_track.len() > 0 {
+                    // get the index of the first track in the main queue
+                    let indy_index = queue.que_track.iter().enumerate().find_map(|(index, f)| {
+                        if tracks.len() > 0 && f.id == tracks[0].id {
+                            Some(index)
+                        } else {
+                            None
+                        }
+                    });
+                    let i = if let Some(e) = indy_index {
+                        e
+                    } else {
+                        queue.que_track.len().wrapping_sub(1)
+                    };
+                    println!(
+                        "New queue index: {i} Queue.lenght: {}",
+                        queue.que_track.len()
+                    );
+                    queue.head = Some((i % queue.que_track.len()).try_into().unwrap());
+                    window.trigger("stop-sink", None);
+                }
             }
         }
         Err(err) => {
@@ -533,16 +599,48 @@ pub fn add_to_queue(
             println!("Adiedhueid ");
         }
     };
-
-    println!(
-        "App queue data => {:?}",
-        app_state
-            .queue
-            .read()
-            .expect("failed to read")
-            .que_track
-            .len()
-    );
+    let res_queue = app_state
+        .queue
+        .read()
+        .expect("failed to read")
+        .que_track
+        .clone();
+    let _ = window.emit("queue-changed", serde_json::to_string(&res_queue)?);
+    println!("App queue data => {:?}", res_queue.len());
 
     Ok(String::new())
+}
+
+#[command]
+pub async fn remove_from_playlist(
+    window: Window,
+    app_state: tauri::State<'_, AppState>,
+    index: usize,
+) -> Result<String, MyError> {
+    let que_tracks = app_state
+        .queue
+        .read()
+        .expect("Failed to read")
+        .que_track
+        .clone();
+    if index >= que_tracks.len() {
+        return Err(MyError::Custom(
+            "Please the index is not in queue : invalid".to_string(),
+        ));
+    }
+    app_state
+        .queue
+        .write()
+        .expect("Failed to write")
+        .que_track
+        .remove(index);
+    // because queue has changed emit event
+    let que_tracks = app_state
+        .queue
+        .read()
+        .expect("Failed to read")
+        .que_track
+        .clone();
+    let _ = window.emit("queue-changed", serde_json::to_string(&que_tracks)?);
+    Ok(String::from("It worked"))
 }
