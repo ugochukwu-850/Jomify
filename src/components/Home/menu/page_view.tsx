@@ -14,8 +14,19 @@ import {
   Link,
 } from "@mui/material";
 import { FC, useEffect, useState } from "react";
-import { Album, JomoNavigation, Page, Track } from "../../../types";
 import {
+  Album,
+  DefaultObjectsPreview,
+  JomoNavigation,
+  Page,
+  Track,
+} from "../../../types";
+import {
+  DownloadDoneOutlined,
+  DownloadDoneRounded,
+  DownloadOutlined,
+  DownloadRounded,
+  DownloadingOutlined,
   ImportContacts,
   PlayArrow,
   PlayCircleFilledOutlined,
@@ -25,26 +36,39 @@ import {
   ViewListOutlined,
 } from "@mui/icons-material";
 import SpotifyIcon from "../../../assets/spotify.svg";
-import { formatDuration, formatHeadDuration, play_tracks } from "../../../util";
+import nextPage, {
+  formatDuration,
+  formatHeadDuration,
+  play_tracks,
+} from "../../../util";
 import { invoke } from "@tauri-apps/api/tauri";
+import { appWindow } from "@tauri-apps/api/window";
 interface PageProps {
   nav: JomoNavigation;
   setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>;
 }
 
 const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
+  let [totalDownloaded, setTotalDownloaded] = useState(0);
+  let [total_items, setTotalItems] = useState(0);
+  let [downloading, setDownloading] = useState(false);
+  let [download_complete, setDownloadComplete] = useState(false);
+
   let { data, next, previous } = nav;
   let page = data;
   useEffect(() => {
+    console.log("Running get tracks effect");
     const getTracks = async () => {
       try {
-        if (!data?.tracks) {
+        console.log("Attempting to get tracks", page?.tracks);
+        if (!page?.tracks?.length) {
           let [o_id, o_type] = [page?.header.id, page?.header.object_type];
           console.log("Running detail page view ", o_id, o_type);
           let tracks: Track[] = await invoke("get_tracks", {
             object: o_type,
             id: o_id,
           });
+          setTotalItems(tracks.length);
           setNav({
             ...nav,
             data: {
@@ -52,14 +76,52 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
               tracks,
             } as Page,
           });
+
+          return
         }
+
         return;
       } catch (error) {
         console.log(error);
       }
     };
+    // function to check downloaded
+    const isDonwloaded = async () => {
+      console.log("Trying to check if the tracks have been downloaded");
+      try {
+        if (page?.tracks?.length) {
+          await invoke("is_downloaded", { tracks: page?.tracks });
+          return;
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
     getTracks();
-  }, []);
+    isDonwloaded();
+  }, [page]);
+
+  useEffect(() => {
+    // if total downloaded changes check to set download or not
+    function loop_back() {
+      if (totalDownloaded) {
+        setTotalDownloaded((prev) => prev % total_items)
+      };
+    }
+    function manage_donwload_status() {
+      if (total_items == totalDownloaded) {
+        setDownloadComplete(true);
+        setDownloading(false);
+      } else {
+        setDownloadComplete(false);
+        if (totalDownloaded != 0) {
+          setDownloading(true);
+        }
+      }
+    }
+    loop_back();
+    manage_donwload_status();
+  }, [totalDownloaded, total_items]);
   return (
     <Box>
       {/* Header displayer */}
@@ -195,9 +257,32 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
               <PlaylistAdd />
             </IconButton>
           </Box>
-          <IconButton sx={{ height: "max-content" }}>
-            <ViewListOutlined />
-          </IconButton>
+          <Box sx={{ display: "flex", flexDirection: "row" }}>
+            {download_complete ? (
+              <IconButton sx={{ height: "max-content" }}>
+                <DownloadDoneRounded sx={{ fontSize: "12px" }} />
+              </IconButton>
+            ) : (
+              <Typography variant="body1" sx={{ fontSize: "12px" }}>
+                {totalDownloaded}/{total_items}
+              </Typography>
+            )}
+            <IconButton
+              sx={{
+                height: "max-content",
+                display: downloading ? "none" : "flex",
+              }}
+              onClick={async () => {
+                try {
+                  await invoke("download", { tracks: page?.tracks });
+                } catch (error) {
+                  console.log(error);
+                }
+              }}
+            >
+              {downloading ? <DownloadingOutlined /> : <DownloadOutlined />}
+            </IconButton>
+          </Box>
         </Box>
         <TableContainer
           sx={{
@@ -229,97 +314,14 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
             <TableBody>
               {page?.tracks?.map((track, index) => {
                 return (
-                  <TableRow
-                    sx={{
-                      "&:hover": { cursor: "pointer" },
-                      "& .MuiTableRow-root :hover": { background: "grey" },
-                    }}
-                    onClick={async () => {
-                      await play_tracks(
-                        [
-                          {
-                            ...track,
-                            album: !track.album
-                              ? ({
-                                  album_type: page.header.object_type,
-                                  artists: page.header.artist,
-                                  href: page.header.href,
-                                  id: page.header.id,
-                                  images: page.header.image,
-                                  name: page.header.name,
-                                  release_date: page.header.released_at,
-                                } as Album)
-                              : track.album,
-                          } as Track,
-                        ],
-                        true,
-                        true
-                      );
-                    }}
-                    key={index}
-                  >
-                    <HoverableTableCell count={index + 1} />
-                    <TableCell
-                      sx={{
-                        display: "flex",
-                        justifyContent: "start",
-                        gap: ".5em",
-                        minWidth: 100,
-                      }}
-                      style={{ minWidth: 100 }}
-                    >
-                      <Card sx={{ background: "transparent" }} elevation={0}>
-                        <CardMedia
-                          loading="lazy"
-                          component={"img"}
-                          sx={{ width: "48px", rowGap: ".5em" }}
-                          image={
-                            track.album
-                              ? track.album.images[0].url
-                              : page.header.image[0].url
-                          }
-                        />
-                      </Card>
-                      <Box>
-                        <Typography>{track.name}</Typography>
-                        <Typography variant="body1">
-                          {track.artists.map((e, i) => {
-                            return (
-                              <Link
-                                sx={{
-                                  color: colors.grey[700],
-                                  fontWeight: "500",
-                                  margin: "auto 4px",
-                                }}
-                                href={e.href}
-                              >
-                                {e.name}
-                              </Link>
-                            );
-                          })}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell style={{ minWidth: 100 }}>
-                      <Typography sx={{ color: "grey", fontWeight: "500" }}>
-                        {track.album ? track.album.name : page.header.name}
-                      </Typography>
-                    </TableCell>
-                    <TableCell style={{ minWidth: 100 }}>
-                      <Typography sx={{ color: "grey", fontWeight: "500" }}>
-                        {track.album
-                          ? track.album.release_date
-                          : page.header.released_at
-                          ? page.header.released_at
-                          : new Date().toLocaleTimeString()}
-                      </Typography>
-                    </TableCell>
-                    <TableCell style={{ minWidth: 100 }}>
-                      <Typography sx={{ color: "grey", fontWeight: "500" }}>
-                        {formatDuration(track.duration_ms)}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
+                  <TrackListItem
+                    track={track}
+                    index={index}
+                    header={page.header}
+                    setDownloadedItem={setTotalDownloaded}
+                    setNav={setNav}
+                    nav={nav}
+                  />
                 );
               })}
             </TableBody>
@@ -329,28 +331,163 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
     </Box>
   );
 };
-interface HVC {
-  count: number;
+
+interface TVC {
+  track: Track;
+  index: number;
+  header: DefaultObjectsPreview;
+  setDownloadedItem: React.Dispatch<React.SetStateAction<number>>,
+  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>,
+  nav: JomoNavigation,
 }
-const HoverableTableCell: FC<HVC> = ({ count }) => {
-  const [isHovered, setIsHovered] = useState(false);
+const TrackListItem: FC<TVC> = ({
+  index,
+  track,
+  header,
+  setDownloadedItem,
+  setNav,
+  nav,
+}) => {
+  let [downloaded, setDownload] = useState(false);
 
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-  };
-
+  useEffect(() => {
+    let listen_if_downloaded = async () => {
+      try {
+        console.log("Attempting to listen for if I am downloaded");
+        let unlisten = await appWindow.listen(
+          `downloaded-${track.id}`,
+          (event) => {
+            console.log(event.payload, track.id);
+            setDownload(true);
+            setDownloadedItem((prev) => prev + 1);
+          }
+        );
+        unlisten();
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    listen_if_downloaded();
+  }, []);
+  
   return (
-    <TableCell
-      style={{ width: "20px" }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+    <TableRow
+      sx={{
+        "&:hover": { cursor: "pointer" },
+        "& .MuiTableRow-root :hover": { background: "grey" },
+      }}
+      key={track.id}
     >
-      {isHovered ? <PlayArrow /> : count}
-    </TableCell>
+      <TableCell
+        onClick={async () => {
+          await play_tracks(
+            [
+              {
+                ...track,
+                album: !track.album
+                  ? ({
+                      album_type: header.object_type,
+                      artists: header.artist,
+                      href: header.href,
+                      id: header.id,
+                      images: header.image,
+                      name: header.name,
+                      release_date: header.released_at,
+                    } as Album)
+                  : track.album,
+              } as Track,
+            ],
+            true,
+            true
+          );
+        }}
+      >
+        {downloaded? <DownloadDoneOutlined/> : <PlayArrow />}
+      </TableCell>
+      <TableCell
+        sx={{
+          display: "flex",
+          justifyContent: "start",
+          gap: ".5em",
+          minWidth: 100,
+        }}
+        style={{ minWidth: 100 }}
+      >
+        <Card sx={{ background: "transparent" }} elevation={0}>
+          <CardMedia
+            loading="lazy"
+            component={"img"}
+            sx={{ width: "48px", rowGap: ".5em" }}
+            image={
+              track.album ? track.album.images[0].url : header.image[0].url
+            }
+          />
+        </Card>
+        <Box>
+          <Typography>{track.name}</Typography>
+          <Typography variant="body1">
+            {track.artists.map((e, i) => {
+              return (
+                <Link
+                  sx={{
+                    color: colors.grey[700],
+                    fontWeight: "500",
+                    margin: "auto 4px",
+                  }}
+                  href={e.href}
+                >
+                  {e.name}
+                </Link>
+              );
+            })}
+          </Typography>
+        </Box>
+      </TableCell>
+      <TableCell style={{ minWidth: 100 }}>
+        <Typography
+          sx={{
+            color: "grey",
+            fontWeight: "500",
+            "& :hover": { textDecoration: "underline" },
+          }}
+          onClick={async () => {
+            // set a page data from the album info and the set the page
+            if (track.album) {
+              let page = {
+                header: {
+                  artist: track.album.artists,
+                  href: track.album.href,
+                  id: track.album.id,
+                  image: track.album.images,
+                  name: track.album.name,
+                  object_type: track.album.album_type,
+                  released_at: track.album.release_date,
+                } as DefaultObjectsPreview,
+              } as Page;
+
+              // call next page on the item
+              nextPage(nav, setNav, page);
+            }
+          }}
+        >
+          {track.album ? track.album.name : header.name}
+        </Typography>
+      </TableCell>
+      <TableCell style={{ minWidth: 100 }}>
+        <Typography sx={{ color: "grey", fontWeight: "500" }}>
+          {track.album
+            ? track.album.release_date
+            : header.released_at
+            ? header.released_at
+            : new Date().toLocaleTimeString()}
+        </Typography>
+      </TableCell>
+      <TableCell style={{ minWidth: 100 }}>
+        <Typography sx={{ color: "grey", fontWeight: "500" }}>
+          {formatDuration(track.duration_ms)}
+        </Typography>
+      </TableCell>
+    </TableRow>
   );
 };
 

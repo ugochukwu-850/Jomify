@@ -26,6 +26,7 @@ import {
   QueueMusic,
   QueueMusicOutlined,
   RepeatOnOutlined,
+  RepeatOneOutlined,
   Replay,
   Shuffle,
   SkipNextRounded,
@@ -47,9 +48,9 @@ import { PlayingAction, Track, QueueMenuContext, Artist } from "../../../types";
 import { formatDuration } from "../../../util";
 import { RightSideMenuContext } from "..";
 interface TrackFeed {
-  track: Track | undefined
+  track: Track | undefined;
 }
-const PlayerDetails: FC<TrackFeed> = ({track}) => {
+const PlayerDetails: FC<TrackFeed> = ({ track }) => {
   return (
     <Box sx={{ display: "flex", flexDirection: "row" }}>
       <CardMedia
@@ -68,13 +69,15 @@ const PlayerDetails: FC<TrackFeed> = ({track}) => {
       />
       <Box sx={{ margin: "auto 4px" }}>
         <Typography variant="body1" fontWeight={900}>
-          {track? track.name : "-------------"}
+          {track ? track.name : "-------------"}
         </Typography>
         <Typography variant="body2" sx={{ color: "grey" }}>
           {track?.artists ? (
             <>
               {track.artists.map((e, _) => (
-                <Link sx={{padding: "0 4px"}} href={e.id}>{e.name}</Link>
+                <Link sx={{ padding: "0 4px" }} href={e.id}>
+                  {e.name}
+                </Link>
               ))}
             </>
           ) : (
@@ -89,6 +92,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [repeat, setRepeat] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let update_track = async () => {
@@ -100,6 +104,8 @@ const PlayerControls = (props: { duration: number | undefined }) => {
             let track = JSON.parse(event.payload) as Track;
             if (track.id) {
               setPosition(0);
+              // set the loading to true
+              setLoading(true);
             }
             console.log("Printing the event response", event.payload);
           }
@@ -108,13 +114,31 @@ const PlayerControls = (props: { duration: number | undefined }) => {
         console.log(error);
       }
     };
+    let update_loading = async () => {
+      try {
+        // listen for the curren_playing emittion
+        const unlisten = await appWindow.listen<string>("loading", (event) => {
+          setLoading(false);
+
+          console.log("Printing the event response", event.payload);
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    };
     update_track();
+    update_loading();
   }, []);
   useEffect(() => {
     let timeoutId: number;
 
     const tick = () => {
-      if (props.duration && playing && position <= props.duration / 1000) {
+      if (
+        props.duration &&
+        playing &&
+        position <= props.duration / 1000 &&
+        !loading
+      ) {
         setPosition((prevPosition) => prevPosition + 1);
       } else if (
         props.duration &&
@@ -133,7 +157,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
         clearTimeout(timeoutId);
       }
     };
-  }, [props.duration, position, playing]);
+  }, [props.duration, position, playing, loading]);
   useEffect(() => {
     let update_play_status = async () => {
       try {
@@ -202,15 +226,17 @@ const PlayerControls = (props: { duration: number | undefined }) => {
         >
           <SkipNextRounded />
         </IconButton>
-        <IconButton onClick={async () => {
-          try {
-            await appWindow.emit("toggle-repeat");
-            setRepeat(!repeat);
-          } catch (error) {
-            console.log(error);
-          }
-        }}>
-          {repeat? <Replay /> : <RepeatOnOutlined sx={{color: "green"}}/>}
+        <IconButton
+          onClick={async () => {
+            try {
+              await appWindow.emit("toggle-repeat");
+              setRepeat(!repeat);
+            } catch (error) {
+              console.log(error);
+            }
+          }}
+        >
+          {!repeat ? <Replay /> : <RepeatOneOutlined sx={{ color: "green" }} />}
         </IconButton>
       </Box>
       <Box
@@ -339,7 +365,7 @@ const MusicPlayer = () => {
   } else {
     return (
       <Box className={styles.player}>
-        <PlayerDetails track={undefined}/>
+        <PlayerDetails track={undefined} />
         <PlayerControls duration={undefined} />
         <PlayerActions />
       </Box>

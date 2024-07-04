@@ -1,17 +1,17 @@
-use std::{fs::File, path::PathBuf, str::FromStr, thread, time::Duration};
+use std::{fmt, fs::File, path::PathBuf, str::FromStr, sync::{Arc, Mutex, RwLock}, thread, time::Duration};
 
-use serde::{Deserialize, Serialize};
+use serde::{de::{self, DeserializeOwned, MapAccess, Visitor}, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::menu::{auth_structures::User, core_structures::HomeResponse};
+use crate::{menu::{auth_structures::User, core_structures::HomeResponse}, AppState, JomoQueue};
 
 use super::{errors::MyError, gear_structures::Artist};
 
-pub async fn get_user_with_db<T: Serialize>(
+pub fn get_data_from_db<T: DeserializeOwned + Serialize>(
     db: &tauri::State<'_, sled::Db>,
     key: impl AsRef<[u8]>,
 ) -> Result<T, MyError> {
     if let Some(user) = db.get(key)? {
-        serde_json::from_slice(&user)?;
+        return Ok(serde_json::from_slice(&user)?);
     }
     Err(anyhow::anyhow!("Error there is no user in db"))?
 }
@@ -69,4 +69,46 @@ fn test_wait_file_read() {
     path = path.join("mai.py");
 
     assert_eq!(wait_read_file(&path, Some(3), Some(10), None).is_err(), true);
+}
+
+pub mod arc_serde {
+    use super::*;
+
+    pub fn serialize<T, S>(data: &Arc<T>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: Serialize,
+        S: Serializer,
+    {
+        T::serialize(&**data, serializer)
+    }
+
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<Arc<T>, D::Error>
+    where
+        T: Deserialize<'de>,
+        D: Deserializer<'de>,
+    {
+        T::deserialize(deserializer).map(Arc::new)
+    }
+}
+
+pub mod arc_rwlock_serde {
+    use super::*;
+    use std::sync::RwLock;
+
+    pub fn serialize<T, S>(data: &Arc<RwLock<T>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: Serialize,
+        S: Serializer,
+    {
+        let data = data.read().expect("RwLock poisoned");
+        T::serialize(&*data, serializer)
+    }
+
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<Arc<RwLock<T>>, D::Error>
+    where
+        T: Deserialize<'de>,
+        D: Deserializer<'de>,
+    {
+        T::deserialize(deserializer).map(|data| Arc::new(RwLock::new(data)))
+    }
 }

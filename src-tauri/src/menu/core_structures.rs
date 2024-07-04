@@ -101,9 +101,9 @@ impl HomeResponse {
             })
             .collect();
         let mut gallery = Vec::new();
-        gallery.extend(simple_featured_pl[6..].to_owned());
+        gallery.extend(simple_featured_pl[8..].to_owned());
         gallery.extend(new_albums);
-        let featured_playlists = simple_featured_pl[..6].to_vec();
+        let featured_playlists = simple_featured_pl[..8].to_vec();
         Ok(Self {
             gallery,
             featured_playlists,

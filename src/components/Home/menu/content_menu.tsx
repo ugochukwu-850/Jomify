@@ -7,6 +7,7 @@ import {
 import {
   Box,
   CardMedia,
+  Grid,
   IconButton,
   ImageList,
   ImageListItem,
@@ -19,8 +20,8 @@ import { FC, useState } from "react";
 import nextPage from "../../../util";
 interface MajorProp {
   data: DefaultObjectsPreview[] | null;
-  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>
-  nav: JomoNavigation
+  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>;
+  nav: JomoNavigation;
 }
 const FeaturedPlaylist: FC<MajorProp> = ({ data, setNav, nav }) => {
   if (data == null) {
@@ -31,22 +32,21 @@ const FeaturedPlaylist: FC<MajorProp> = ({ data, setNav, nav }) => {
       <Typography variant="h5" sx={{ fontWeight: "900" }}>
         Featured Playlists
       </Typography>
-      <Box
+      <Grid container columns={8}
         sx={{
-          display: "flex",
-          flexDirection: "row",
-          flexWrap: "wrap",
-          placeContent: "space-between",
+          justifyContent: "start",
         }}
       >
         {data.map((datum, index) => (
-          <Box
+          <Grid
             key={index}
+            xs = {8} sm={4} md={4} lg={2} xl={2}
             sx={{
               margin: "2px 0",
               "& :hover": { background: lighten("#242424", 0.05) },
               transition: "1 ease-in-out 0.3s",
               cursor: "pointer",
+              gap: "2rem"
             }}
             onClick={() => {
               let page: Page = { header: datum };
@@ -55,19 +55,17 @@ const FeaturedPlaylist: FC<MajorProp> = ({ data, setNav, nav }) => {
           >
             <Box
               sx={{
-                minWidth: "360px",
-                maxWidth: "400px",
                 display: "grid",
                 gridTemplateColumns: "auto 50% auto",
                 gap: ".2em",
                 background: "#242424",
-                borderRadius: "12px",
+                borderRadius: "6px",
                 margin: "4px 12px",
               }}
             >
               <CardMedia
                 component="img"
-                sx={{ width: "54px", borderRadius: "12px 0 0 12px" }}
+                sx={{ width: "54px", borderRadius: "6px 0 0 6px" }}
                 image={datum.image[0].url}
               />
               <Typography
@@ -94,18 +92,14 @@ const FeaturedPlaylist: FC<MajorProp> = ({ data, setNav, nav }) => {
                 />
               </IconButton>
             </Box>
-          </Box>
+          </Grid>
         ))}
-      </Box>
+      </Grid>
     </Box>
   );
 };
 
-const MainPlaylistCollage: FC<MajorProp> = ({
-  data,
-  setNav,
-  nav
-}) => {
+const MainPlaylistCollage: FC<MajorProp> = ({ data, setNav, nav }) => {
   let [mansory, setMansory] = useState(true);
   if (data == null) {
     return <></>;
@@ -150,7 +144,7 @@ const MainPlaylistCollage: FC<MajorProp> = ({
               rows={item.row || 1}
               onClick={() => {
                 let page: Page = { header: item };
-                nextPage(nav, setNav, page );
+                nextPage(nav, setNav, page);
               }}
             >
               <img

@@ -41,6 +41,7 @@ import {
   RemoveSharp,
 } from "@mui/icons-material";
 import { appWindow } from "@tauri-apps/api/window";
+import { play_tracks } from "../../util";
 const RightSideMenuContext = createContext<null | QueueMenuContext>(null);
 
 const Home = () => {
@@ -289,7 +290,17 @@ const Home = () => {
                   </Typography>
                   {QueueMenu.context.tracks.map((track, track_index) => (
                     <ListItem
-                      key={track.id}
+                      onClick={async () => {
+                        console.log("Clicked");
+                        page?.tracks
+                          ? await play_tracks(
+                              [track],
+                              true,
+                              true
+                            )
+                          : false;
+                      }}
+                      key={track.id+track_index}
                       sx={{
                         gap: "6px",
                         margin: "4px 2px",

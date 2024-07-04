@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -14,7 +15,7 @@ use super::auth_structures::{Settings, SupportedApps, User};
 use super::core_structures::HomeResponse;
 use super::errors::MyError;
 use super::gear_structures::{FeaturedPlaylistRequest, Track, Tracks};
-use super::utils::get_user_with_db;
+use super::utils::get_data_from_db;
 
 use anyhow::anyhow;
 use oauth2::reqwest::async_http_client;
@@ -25,7 +26,7 @@ use rusty_ytdl::search::{SearchResult, YouTube};
 use rusty_ytdl::{Video, VideoOptions, VideoQuality, VideoSearchOptions};
 use serde_json::json;
 use tauri::api::path::app_data_dir;
-use tauri::{command, Window};
+use tauri::{command, window, Manager, Window};
 
 // Define the store state to hold the store
 #[command]
@@ -51,12 +52,15 @@ pub async fn generate_auth_url(
         .url();
 
     // save the csrf token in state and also save the pcke verifier in state
-    let _ = db.insert("verifier", pkce_verifier.secret().as_str())?;
-    let _ = db.insert("csrf_token", csrf_token.secret().as_str())?;
+    let _ = db.insert("verifier", serde_json::to_vec(&pkce_verifier.secret())?)?;
+    let _ = db.insert("csrf_token", serde_json::to_vec(&csrf_token.secret())?)?;
 
     // save the client in state
-    let _ = db.insert("auth_client_id", client.client_id().to_string().as_str())?;
-    let _ = db.insert("app_name", app.name().as_str())?;
+    let _ = db.insert(
+        "auth_client_id",
+        serde_json::to_vec(&client.client_id().to_string())?,
+    )?;
+    let _ = db.insert("app_name", serde_json::to_vec(&app.name())?)?;
 
     Ok(auth_url)
 }
@@ -67,13 +71,20 @@ pub async fn exchange_auth_code(
     state: Option<String>,
     code: String,
     db: tauri::State<'_, sled::Db>,
+    app_state: tauri::State<'_, AppState>,
 ) -> Result<User, MyError> {
     // Async function actually run the exchange - This function could later become a closure
-    let db_state = get_user_with_db::<String>(&db, "csrf_token").await?;
-    let verifier = get_user_with_db::<String>(&db, "verifier").await?;
-    let client_id = Some(get_user_with_db::<String>(&db, "auth_client_id").await?);
-    let app_name = get_user_with_db::<String>(&db, "app_name").await?;
-
+    let db_state = get_data_from_db::<String>(&db, "csrf_token")?;
+    let verifier = get_data_from_db::<String>(&db, "verifier")?;
+    let client_id = Some(get_data_from_db::<String>(&db, "auth_client_id")?);
+    let app_name = get_data_from_db::<String>(&db, "app_name")?;
+    println!(
+        "Parsed all the key information state -> {} verifier -> {} client id -> {} app_name -> {}",
+        db_state,
+        verifier,
+        client_id.clone().unwrap(),
+        app_name
+    );
     if let Some(e) = state {
         if e != db_state {
             return Err(anyhow::anyhow!("State does not match"))?;
@@ -103,8 +114,12 @@ pub async fn exchange_auth_code(
                 profile,
                 meta,
             };
-            // insert user into db
-            let _ = db.insert("user", &*serde_json::to_string(&user)?)?;
+            // insert db into state : NB: would be saved to memory on exit
+            app_state
+                .user
+                .lock()
+                .expect("Failed to lock user")
+                .replace(user.clone());
             Ok(user)
         }
         Err(err) => Err(anyhow::anyhow!(err))?,
@@ -121,8 +136,8 @@ pub async fn is_authenticated(
     db: tauri::State<'_, sled::Db>,
     app_state: tauri::State<'_, AppState>,
 ) -> Result<bool, MyError> {
-    if let Some(user) = db.get("user")? {
-        let user: User = serde_json::from_slice(&user)?;
+    let user = app_state.user.lock().expect("Failed to lock user").clone();
+    if let Some(user) = user {
         println!("Found user =|>|: {:?} \n", user.profile.display_name);
         let res = user.is_authenticated(db).await?;
         let mut app_state = app_state
@@ -139,15 +154,17 @@ pub async fn is_authenticated(
 pub async fn home(
     db: tauri::State<'_, sled::Db>,
     app_state: tauri::State<'_, AppState>,
+    window: Window,
 ) -> Result<HomeResponse, MyError> {
     let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
     let user = match app_state.user.lock() {
         Ok(e) => e.clone(),
-        Err(e) => return var_name,
+        Err(_) => return var_name,
     };
     if let Some(user) = user {
-        return user.home(db).await;
-    }
+        let home = user.home(db).await;
+        return home;
+    };
 
     Err(anyhow::anyhow!("Error"))?
 }
@@ -167,13 +184,11 @@ pub async fn get_tracks(
 }
 
 pub async fn process_queue(
-    config: &tauri::Config,
+    root_path: Arc<PathBuf>,
     tracks: Vec<Track>,
     window: Window,
+    processes_queue: Arc<RwLock<HashSet<String>>>,
 ) -> Result<(), MyError> {
-    let root_path = app_data_dir(config).expect("Failing to get app data dir");
-    // Create the directory if it doesn't exist
-
     let audio_root_path = root_path.join("media").join("audio");
     let video_root_path = root_path.join("media").join("video");
 
@@ -190,17 +205,33 @@ pub async fn process_queue(
     // explicitely unlock queue as processing may stop it from being accessible
 
     'mainloop: for track in tracks {
+        // check if this track is in the process_queue
+        if processes_queue
+            .read()
+            .expect("Faioled to read process here")
+            .contains(&track.id)
+        {
+            println!("Someone is already processing this :{}", track.id);
+            continue;
+        }
         // get the query name
         let video_path = video_root_path.join(track.video_path());
         let audio_path = audio_root_path.join(track.audio_path());
 
         if audio_path.exists() && video_path.exists() {
-            println!("Found song {:?} path", audio_path.to_str());
+            println!("Found song {:?}", audio_path.to_str());
             continue;
         } else {
             println!("Did not find song {:?} path", audio_path.to_str());
         }
 
+        // set that you are now processing this track
+        {
+            processes_queue
+                .write()
+                .expect("Failed to lock")
+                .insert(track.id.clone());
+        }
         // run the search
         match yt.search(track.search_query(), None).await {
             Ok(search_result) => {
@@ -212,8 +243,8 @@ pub async fn process_queue(
                                 video.id, video.duration, video.title
                             );
 
-                            if video.duration as usize <= track.duration_ms as usize + 30000
-                                && video.duration as usize >= track.duration_ms as usize - 30000
+                            if video.duration as usize <= track.duration_ms as usize + 10000
+                                && video.duration as usize >= track.duration_ms as usize - 10000
                             {
                                 println!("Found videos with similar length");
                                 return Ok(video.url);
@@ -228,7 +259,7 @@ pub async fn process_queue(
                     }
                     Err(_) => {
                         eprintln!("An error occured we could not find the right video");
-                        // emit message
+                        // emit message could not find video
                         continue 'mainloop;
                     }
                 };
@@ -245,13 +276,19 @@ pub async fn process_queue(
                 let stream = video.stream().await.unwrap();
                 let mut total_bytes = Vec::new();
 
-                while let Some(chunk) = stream.chunk().await.unwrap() {
+                while let Some(chunk) = stream.chunk().await.unwrap_or(None) {
                     // emit message of id of song and its byte downloaded
                     eprintln!("{} byte downloaded", chunk.len() / 1000);
 
                     total_bytes.extend(chunk);
                 }
-
+                if total_bytes.is_empty() {
+                    println!(
+                        "Could not download track becuase no data in stream: {}",
+                        track.name
+                    );
+                    continue;
+                }
                 _ = std::fs::write(&video_path, total_bytes).expect("Failed to save video");
                 let status = Command::new("ffmpeg")
                     .arg("-i")
@@ -264,15 +301,18 @@ pub async fn process_queue(
                     .expect("Failed to execute ffmpeg command");
                 if status.success() {
                     // set the queue items audio and video source
-                    let _ = window.emit(
-                        "downloaded",
-                        format!("Sucessfully Downloaded {}", track.name),
-                    );
+                    let _ = window.emit(&format!("downloaded-{}", track.id), "downloaded");
+                    {
+                        processes_queue
+                            .write()
+                            .expect("Failed to lock")
+                            .remove(&track.id);
+                    }
                     eprintln!(
                         "Successfully processed this song {} saved at {:?}",
                         track.name,
                         audio_path.to_str()
-                    )
+                    );
                 } else {
                     // emit message processing with ffmpeg did not go so well
                     continue;
@@ -314,6 +354,8 @@ pub fn play_queue(
             .expect("Failed to run event");
         println!("Just toggled sink status => Playing {}", sink2.is_paused())
     });
+
+    // set volume
     let sink3 = sink.clone();
     window.listen("set-volume", move |event| {
         let payload = if let Some(e) = event.payload() {
@@ -324,6 +366,8 @@ pub fn play_queue(
         let position = payload.parse::<f32>().unwrap_or(1.0);
         sink3.set_volume(position);
     });
+
+    // set seek
     let sink4 = sink.clone();
     window.listen("seek", move |event| {
         let payload = if let Some(e) = event.payload() {
@@ -334,38 +378,38 @@ pub fn play_queue(
         let seconds = payload.parse::<f32>().unwrap_or(1.0);
         let _ = sink4.try_seek(Duration::from_secs_f32(seconds));
     });
+
+    // set play
     let set_play_sink = sink.clone();
     let set_play_queue = queue.clone();
     window.listen("set-play", move |event| {
-        let payload = if let Some(e) = event.payload() {
-            match e.parse::<u32>() {
-                Ok(e) => e,
-                Err(_) => return,
-            }
-        } else {
-            return;
-        };
-        set_play_queue.write().expect("Failed to write").head = Some(payload); // Use wrapping_sub to avoid negative values
-        set_play_sink.stop();
+        if let Some(payload) = event.payload().and_then(|e| e.parse::<u32>().ok()) {
+            let mut write_guard = set_play_queue.write().expect("Failed to write");
+            write_guard.head = Some(payload); // Use wrapping_sub to avoid negative values
+            drop(write_guard); // Release the write lock before calling stop
+            set_play_sink.stop();
+        }
     });
+
+    // next and previous sink
 
     let next_sink = sink.clone();
     let next_queue = queue.clone();
     window.listen("next-previous", move |event| {
         let current_head = next_queue.read().expect("Failed to read next").head;
         if event.payload().is_some() {
-            if let Some(_head) = current_head {
-                // let len = next_queue.read().expect("read failed").que_track.len() as u32;
-                // next_queue.write().expect("Failed to write").head =
-                //     Some(head.wrapping_add(1) % len);
+            if let Some(head) = current_head {
+                let len = next_queue.read().expect("read failed").que_track.len() as u32;
+                let mut write_lock = next_queue.write().expect("Failed to write");
+                write_lock.head = Some(head.wrapping_add(1) % len);
                 next_sink.stop();
             }
         } else {
             if let Some(head) = current_head {
-                // because ones the sink is stoped it automatically updates the head by one ; Make the countback twice
                 let len = next_queue.read().expect("read failed").que_track.len() as u32;
-                next_queue.write().expect("Failed to write").head =
-                    Some((head.wrapping_sub(1)) % len); // Use wrapping_sub to avoid negative values
+                let mut write_lock = next_queue.write().expect("Failed to write");
+                // because ones the sink is stoped it automatically updates the head by one ; Make the countback twice
+                write_lock.head = Some((head.wrapping_sub(1)) % len); // Use wrapping_sub to avoid negative values
                 next_sink.stop();
             }
         }
@@ -376,21 +420,23 @@ pub fn play_queue(
         next_sink.play();
     });
 
+    // stop sink command
     let stop_sink = sink.clone();
     window.listen("stop-sink", move |_| {
         stop_sink.stop();
     });
 
+    // repeat clone
     let repeat_clone = repeat.clone();
     window.listen("toggle-repeat", move |_| {
         let repeat = repeat_clone
-        .read()
-        .expect("Failed to read the repeat")
-        .clone();
+            .read()
+            .expect("Failed to read the repeat")
+            .clone();
         *repeat_clone.write().expect("Failed to write lock repeat") = !repeat;
     });
 
-    loop {
+    'player_loop: loop {
         // Only if sink is playing should you try to play the next song
         if !sink.is_paused() && queue.read().expect("Failed to read").que_track.len() > 0 {
             // Read the queue data
@@ -443,41 +489,7 @@ pub fn play_queue(
                 &artists.iter().map(|f| f.name.to_owned()).collect(),
             ));
             let before_wait_head = queue.read().expect("Failed to read").head.clone().unwrap();
-
-            let file = if let Ok(e) = wait_read_file(&audio_file_path, Some(1), Some(1), None) {
-                e
-            } else {
-                let cur_queue = queue.read().expect("Failed to read").clone();
-                queue.write().expect("Failed to write").head = Some(
-                    cur_queue.head.unwrap().wrapping_add(1) % cur_queue.que_track.len() as u32,
-                );
-                continue;
-            };
-
-            let file = BufReader::new(file);
-
-            // Attempt to decode the audio file and handle errors
-            let source = match Decoder::new(file) {
-                Ok(val) => val,
-                Err(e) => {
-                    eprintln!("Error decoding audio file: {}", e);
-                    continue;
-                }
-            };
-            // stop the current sink or empty it
-            sink.stop();
-            // Append the new source file
-            println!("Appending source to play it");
-            let duration_ms = {
-                if let Some(d) = source.total_duration() {
-                    d.as_millis()
-                } else {
-                    duration_ms
-                }
-            };
-            sink.append(source);
-
-            // Play the file
+            let mut file = None;
             // emit the current-playing-changed
             let track = Track {
                 album,
@@ -490,7 +502,29 @@ pub fn play_queue(
                 object_type,
             };
 
-            sink.play();
+            // start playing track
+
+            // Scope the read lock to minimize its duration
+            let (cur_head, read_queue_len) = {
+                let read_queue = queue.read().expect("Failed to read");
+                let len = read_queue.que_track.len();
+                let head = read_queue.head.clone().unwrap();
+                (head, len)
+            };
+
+            // only if this is not the last item
+            if cur_head as usize % read_queue_len != read_queue_len - 1 {
+                let read_queue = queue.read().expect("Failed to read");
+                let next_track =
+                    &read_queue.que_track[cur_head as usize % read_queue_len as usize..][..2];
+
+                if let Ok(e) = serde_json::to_string(next_track) {
+                    // Attempting to process next track
+                    println!("Attempting to process next track: {}", e);
+                    window.trigger("process-tracks", Some(e));
+                }
+            }
+
             window
                 .emit(
                     "current-playing-changed",
@@ -502,17 +536,67 @@ pub fn play_queue(
                 "sink-playing-status",
                 json!({"playing": !sink.is_paused()}).to_string(),
             );
+            'recurse_get_file: for x in 0..180 {
+                // if the queue has changed or the file is found break out of loop
+                if queue.read().expect("Head failed to wait").head.unwrap() != before_wait_head
+                    || file.is_some()
+                {
+                    break 'recurse_get_file;
+                }
+                // try to get the file
+                file = if let Ok(e) = wait_read_file(&audio_file_path, Some(1), Some(1), None) {
+                    Some(e)
+                } else {
+                    // if not file just continue
+                    continue 'recurse_get_file;
+                };
+                thread::sleep(Duration::from_secs(1));
+                println!("Attempting find retry: {}", x);
+            }
 
-            sink.sleep_until_end();
+            // if a file was found do the normal processing other wise just go to the next
+            if let Some(file) = file {
+                let file = BufReader::new(file);
+
+                // Attempt to decode the audio file and handle errors
+                let source = match Decoder::new(file) {
+                    Ok(val) => val,
+                    Err(e) => {
+                        eprintln!("Error decoding audio file: {}", e);
+                        continue;
+                    }
+                };
+                // stop the current sink or empty it
+                sink.stop();
+                // Append the new source file
+                println!("Appending source to play it");
+                // let duration_ms = {
+                //     if let Some(d) = source.total_duration() {
+                //         d.as_millis()
+                //     } else {
+                //         duration_ms
+                //     }
+                // };
+                sink.append(source);
+
+                // emit that the current playing is now not loading
+                let _ = window.emit("loading", "false");
+
+                sink.play();
+
+                sink.sleep_until_end();
+            }
+
             let cur_head = queue.read().expect("Failed to read").head.clone().unwrap();
             if cur_head == before_wait_head {
                 if *repeat.read().expect("Failed to read repeat") {
                     continue;
                 }
-                // make emit next and wait for event listner to respond
-                let cur_queue_track_len = queue.read().expect("Failed to read").que_track.len();
-                queue.write().expect("Failed to write").head =
-                    Some(cur_head.wrapping_add(1) % cur_queue_track_len as u32);
+
+                let cur_queue = queue.read().expect("Failed to read").clone();
+                queue.write().expect("Failed to write").head = Some(
+                    cur_queue.head.unwrap().wrapping_add(1) % cur_queue.que_track.len() as u32,
+                );
             }
         }
         thread::sleep(Duration::from_secs(1));
@@ -535,20 +619,20 @@ pub fn add_to_queue(
             println!("Running the locked data ");
             // if its a playlist play action
             if !add {
-                window.trigger(
-                    "process-tracks",
-                    Some(serde_json::to_string(&tracks).expect("Could not parse queue")),
-                );
+                // window.trigger(
+                //     "process-tracks",
+                //     Some(serde_json::to_string(&tracks).expect("Could not parse queue")),
+                // );
 
                 queue.que_track = tracks.clone();
                 queue.head = Some(0);
                 window.trigger("stop-sink", None);
                 // emit process queue as queue has be updated\
             } else {
-                window.trigger(
-                    "process-tracks",
-                    Some(serde_json::to_string(&tracks).expect("Could not parse queue")),
-                );
+                // window.trigger(
+                //     "process-tracks",
+                //     Some(serde_json::to_string(&tracks).expect("Could not parse queue")),
+                // );
 
                 // All tracks not in quetrack
                 let cleaned_tracks: Vec<Track> = tracks
@@ -643,4 +727,40 @@ pub async fn remove_from_playlist(
         .clone();
     let _ = window.emit("queue-changed", serde_json::to_string(&que_tracks)?);
     Ok(String::from("It worked"))
+}
+
+#[command]
+/// Calls the process track on all given tracks and returns
+/// Used on any types that is a vector of Track
+pub fn download(tracks: Vec<Track>, window: Window) -> Result<(), MyError> {
+    // call the process tracks on it
+    window.trigger("process-tracks", Some(serde_json::to_string(&tracks)?));
+    println!("download has been called ");
+    Ok(())
+}
+
+#[command]
+/// Is download does not actually perform any download actions
+/// Instead it checks if every track in the request data is in downloaded
+/// it triggers and emits an event with the status of the track
+pub fn is_downloaded(window: Window, tracks: Vec<Track>) {
+    let root_dir = if let Some(e) = app_data_dir(&window.config()) {
+        e.join("media")
+    } else {
+        return;
+    };
+
+    // use tauri to try to open their file path
+    for track in tracks {
+        let audio_path = root_dir.join("audio").join(track.audio_path());
+        let video_path = root_dir.join("video").join(track.video_path());
+        if audio_path.exists() || video_path.exists() {
+            println!("This track is in downloads: {}", track.id);
+
+            let _ = window.emit(&format!("downloaded-{}", track.id), "downloaded");
+        }
+        else {
+            println!("NOT IN DOWNLOAD: {}", track.id);
+        }
+    }
 }
