@@ -51,7 +51,7 @@ import {
   SimplifiedArtist,
 } from "../../../types";
 import nextPage, { formatDuration, generate_artist_page } from "../../../util";
-import { JomoNavigationContext, RightSideMenuContext } from "..";
+import { JomoNavigationContext } from "..";
 interface TrackFeed {
   track: Track | undefined;
 }
@@ -294,8 +294,13 @@ const PlayerControls = (props: { duration: number | undefined }) => {
 
 const PlayerActions = () => {
   let [volume, setVolume] = useState(1.0);
-  let context = useContext(RightSideMenuContext);
-  return (
+  let nav_context = useContext(JomoNavigationContext);
+  if (nav_context) {
+    nav_context;
+  } else {
+    return <></>;
+  }
+  let { nav, setNav, queue_tab_visible, setQueueVisible} = nav_context;  return (
     <Box
       sx={{
         display: "flex",
@@ -310,11 +315,11 @@ const PlayerActions = () => {
         </IconButton>
         <IconButton
           onClick={() => {
-            if (context) {
+            if (queue_tab_visible) {
               // update the value else return : We are sure it is always some
               console.log("Toggled queue showing");
-              context.setData({ ...context.data, open: !context.data.open });
-              console.log(context.data.open);
+              setQueueVisible(!queue_tab_visible);
+              console.log(queue_tab_visible);
             }
           }}
         >
@@ -378,6 +383,23 @@ const MusicPlayer = () => {
     };
     update_track();
   }, []);
+
+  // initialize on re render
+  useEffect(() => {
+    let update_track = async () => {
+      try {
+        // listen for the curren_playing emittion
+        let track = await invoke<Track>("get_head");
+        setTrack(track);
+        console.log(track);
+        
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    update_track();
+  }, []);
+
   if (track) {
     return (
       <Box className={styles.player}>

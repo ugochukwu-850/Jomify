@@ -570,13 +570,7 @@ pub fn play_queue(
                 sink.stop();
                 // Append the new source file
                 println!("Appending source to play it");
-                // let duration_ms = {
-                //     if let Some(d) = source.total_duration() {
-                //         d.as_millis()
-                //     } else {
-                //         duration_ms
-                //     }
-                // };
+                
                 sink.append(source);
 
                 // emit that the current playing is now not loading
@@ -601,6 +595,7 @@ pub fn play_queue(
         }
         thread::sleep(Duration::from_secs(1));
     }
+
 }
 
 #[command]

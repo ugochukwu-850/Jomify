@@ -1,18 +1,21 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::HashSet, path::PathBuf, sync::RwLock};
+use std::{collections::HashSet, panic, path::PathBuf, sync::RwLock, thread, time::Duration};
 
 use menu::{
     auth_structures::User,
     commands::play_queue,
     gear_structures::Track,
-    utils::{generate_audio_path, generate_search_query, generate_video_path, get_data_from_db, arc_rwlock_serde},
+    utils::{
+        arc_rwlock_serde, generate_audio_path, generate_search_query, generate_video_path,
+        get_data_from_db,
+    },
 };
 use rodio::{Decoder, OutputStream, Sink};
 use serde::{Deserialize, Serialize};
 use sled::Db;
-use tauri::{api::path::app_data_dir, Manager, WindowEvent};
+use tauri::{api::{notification::Notification, path::app_data_dir}, Manager, WindowEvent};
 
 pub mod menu;
 use std::sync::{Arc, Mutex};
@@ -115,7 +118,8 @@ fn main() {
             // listen to the `event-name` (emitted on the `main` window)
             let value = app_dir.clone();
             let window = main_window.clone();
-            let main_active_track_processes:Arc<RwLock<HashSet<String>>>  = Arc::new(RwLock::new(HashSet::new()));
+            let main_active_track_processes: Arc<RwLock<HashSet<String>>> =
+                Arc::new(RwLock::new(HashSet::new()));
             let matp_handle = main_active_track_processes.clone();
             // process the queue in a rather archaic way
             main_window.listen("process-tracks", move |event| {
@@ -147,11 +151,12 @@ fn main() {
             let cursor_queue = app_queue.clone();
             let data_dir = app_dir.clone();
             let play_main_window_handle = main_window.clone();
+            let r_config = app.config().clone();
             tauri::async_runtime::spawn(async move {
                 eprintln!("I have recieved the play queue request");
 
                 let _ = play_queue(cursor_queue, data_dir, play_main_window_handle);
-            });
+                 });
 
             Ok(())
         })
@@ -166,7 +171,10 @@ fn main() {
             menu::commands::download,
             menu::commands::is_downloaded,
             menu::commands::artist_detail,
-            menu::commands::artist_albums
+            menu::commands::artist_albums,
+            menu::commands::play_next,
+            menu::commands::get_head,
+            menu::commands::get_queue
         ])
         .on_window_event(|event| {
             // create a handler closure for default exit and save protocol
@@ -179,24 +187,24 @@ fn main() {
 
                 // retrieve app state from state
                 let state = app_handle.state::<AppState>();
-                
+
                 //
                 println!("Initializing data persist");
                 // save to db and exit successfully
                 let _ = db.insert(
                     "app_state",
-                    serde_json::to_vec(&*state).expect("Failed to parse"));
+                    serde_json::to_vec(&*state).expect("Failed to parse"),
+                );
                 println!("Data persist successfully . \n Gracefull shutdown");
 
                 app_handle.exit(0);
             };
-            if let WindowEvent::CloseRequested { api , .. } = event.event() {
+            if let WindowEvent::CloseRequested { api, .. } = event.event() {
                 // Perform any cleanup before the application closes
                 println!("Application is closing...");
                 api.prevent_close();
                 // run save and exit protocol
                 save_protocol_oo1();
-
 
                 // save the state to db
             } else if let WindowEvent::Destroyed {} = event.event() {

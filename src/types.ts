@@ -141,7 +141,9 @@ export interface JomoNavigation {
 
 export interface JomoNavigationContextShape {
   setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>,
-  nav: JomoNavigation
+  nav: JomoNavigation,
+  queue_tab_visible: boolean,
+  setQueueVisible: React.Dispatch<React.SetStateAction<boolean>>
 }
 
 export interface PlayingAction {

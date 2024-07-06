@@ -9,7 +9,6 @@ import {
 import { FC, useContext, useEffect, useState } from "react";
 import DetailPageView from "./page_view";
 import nextPage from "../../../util";
-import { RightSideMenuContext } from "..";
 interface mainProp {
   props: HomeResponse | null;
   nav: JomoNavigation,
@@ -20,7 +19,6 @@ const Main: FC<mainProp> = ({ props, nav, setNav}): JSX.Element => {
   if (props == null) {
     return <></>;
   }
-  let context = useContext(RightSideMenuContext);
   return (
     <Box
       sx={{

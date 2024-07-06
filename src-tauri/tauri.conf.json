@@ -13,6 +13,9 @@
   "tauri": {
     "allowlist": {
       "all": true,
+      "notification": {
+        "all": true
+      },
       "shell": {
         "all": false,
         "open": true
@@ -26,7 +29,7 @@
         "all": true
       }
     },
-  
+
     "windows": [
       {
         "title": "Jomify",

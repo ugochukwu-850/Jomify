@@ -13,6 +13,12 @@ import {
   colors,
   Link,
   Grid,
+  MenuList,
+  SpeedDial,
+  SpeedDialIcon,
+  SpeedDialAction,
+  ListItem,
+  ListItemIcon,
 } from "@mui/material";
 import { FC, useContext, useEffect, useState } from "react";
 import {
@@ -24,16 +30,24 @@ import {
   ArtistDetail,
 } from "../../../types";
 import {
+  AddToQueueOutlined,
+  DoneOutlined,
+  Download,
   DownloadDoneOutlined,
   DownloadDoneRounded,
   DownloadOutlined,
   DownloadRounded,
   DownloadingOutlined,
+  Favorite,
   ImportContacts,
+  ListAltOutlined,
+  ListSharp,
   PlayArrow,
   PlayCircleFilledOutlined,
   PlaylistAdd,
   PunchClock,
+  QueuePlayNext,
+  TimelapseRounded,
   ViewAgendaSharp,
   ViewListOutlined,
 } from "@mui/icons-material";
@@ -47,6 +61,13 @@ import nextPage, {
 import { invoke } from "@tauri-apps/api/tauri";
 import { appWindow } from "@tauri-apps/api/window";
 import { JomoNavigationContext } from "..";
+import { Menu, MenuItem } from "@mui/material";
+import {
+  isPermissionGranted,
+  requestPermission,
+  sendNotification,
+} from "@tauri-apps/api/notification";
+
 interface PageProps {
   page: DefaultObjectPage;
 }
@@ -164,9 +185,21 @@ const ObjectDisplayView: FC<ObjectDisplayViewProps> = ({ header, tracks }) => {
   }
   let { nav, setNav } = nav_context;
   let [totalDownloaded, setTotalDownloaded] = useState(0);
-  let [total_items, setTotalItems] = useState(0);
+  let [total_items, setTotalItems] = useState<undefined | number>(undefined);
   let [downloading, setDownloading] = useState(false);
   let [download_complete, setDownloadComplete] = useState(false);
+
+  useEffect(() => {
+    if (total_items && totalDownloaded == total_items) {
+      setDownloadComplete(true);
+    }
+  }, [totalDownloaded])
+
+  useEffect(() => {
+    if (tracks) {
+      setTotalItems(tracks.length);
+    }
+  }, [tracks])
 
   return (
     <Box>
@@ -327,7 +360,7 @@ const ObjectDisplayView: FC<ObjectDisplayViewProps> = ({ header, tracks }) => {
                 <DownloadDoneRounded sx={{ fontSize: "12px" }} />
               </IconButton>
             ) : (
-              <Typography variant="body1" sx={{ fontSize: "12px" }}>
+              <Typography variant="body1" sx={{ fontSize: "12px", margin: "auto 2px"}}>
                 {totalDownloaded}/{total_items}
               </Typography>
             )}
@@ -339,6 +372,7 @@ const ObjectDisplayView: FC<ObjectDisplayViewProps> = ({ header, tracks }) => {
               onClick={async () => {
                 try {
                   await invoke("download", { tracks: tracks });
+                  setDownloading(true);
                 } catch (error) {
                   console.log(error);
                 }
@@ -367,12 +401,16 @@ const ObjectDisplayView: FC<ObjectDisplayViewProps> = ({ header, tracks }) => {
                 <TableCell key="2header" align="left" style={{ minWidth: 100 }}>
                   <Typography>Album</Typography>
                 </TableCell>
-                <TableCell key="3header" align="left" style={{ minWidth: 100 }}>
-                  <Typography>Date Added</Typography>
-                </TableCell>
+
                 <TableCell key="4header" align="left" style={{ minWidth: 100 }}>
-                  <PunchClock />
+                  <TimelapseRounded />
                 </TableCell>
+
+                <TableCell
+                  key="3header"
+                  align="left"
+                  style={{ minWidth: 40 }}
+                ></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -442,12 +480,22 @@ const ArtistDetailDisplayView: FC<ArtistDisplayViewProps> = ({
             })}
           </Box>
           <Typography variant="body1" sx={{ color: "greenyellow" }}>
-            Followers {header.followers.total > 1000 ? Math.round(Math.floor(header.followers.total)/1000) : header.followers.total}k
+            Followers{" "}
+            {header.followers.total > 1000
+              ? Math.round(Math.floor(header.followers.total) / 1000)
+              : header.followers.total}
+            k
           </Typography>
         </Box>
       </Box>
       {/**Album List view */}
-      <Grid container columns={18} justifyContent={"space-evenly"} gap={".5rem"} sx={{margin: "24px 6px"}}>
+      <Grid
+        container
+        columns={18}
+        justifyContent={"space-evenly"}
+        gap={".5rem"}
+        sx={{ margin: "24px 6px" }}
+      >
         {albums?.map(
           (
             { type: album_type, artists, href, id, images, release_date, name },
@@ -492,7 +540,16 @@ const AlbumComponent: FC<Album> = (album) => {
   } as DefaultObjectPage;
   return (
     <Box
-    sx={{width: "100%", height: "100%", minHeight: "250px", "&: hover": {background: "rgba(122, 125, 125, .1)", borderRadius: "6px", cursor: "pointer"}}}
+      sx={{
+        width: "100%",
+        height: "100%",
+        minHeight: "250px",
+        "&: hover": {
+          background: "rgba(122, 125, 125, .1)",
+          borderRadius: "6px",
+          cursor: "pointer",
+        },
+      }}
       onClick={async () => {
         // onclick create new page with the header and no tracks
         nextPage(nav, setNav, { ...page, auto_play: false });
@@ -500,8 +557,7 @@ const AlbumComponent: FC<Album> = (album) => {
     >
       <CardMedia
         image={album.images[0].url}
-        
-        sx={{minHeight: "200px", borderRadius: "6px" }}
+        sx={{ minHeight: "200px", borderRadius: "6px" }}
       >
         <IconButton
           onClick={async () => {
@@ -601,7 +657,7 @@ const TrackListItem: FC<TVC> = ({
           );
         }}
       >
-        {downloaded ? <DownloadDoneOutlined /> : <PlayArrow />}
+        {<PlayArrow sx={{color: downloaded ? "green" : "white"}}/>}
       </TableCell>
       <TableCell
         sx={{
@@ -623,7 +679,7 @@ const TrackListItem: FC<TVC> = ({
           />
         </Card>
         <Box>
-          <Typography>{track.name}</Typography>
+          <Typography>{downloaded? <DoneOutlined sx={{fontSize: "12px"}}/> : ""}{track.name}</Typography>
           <Typography variant="body1">
             {track.artists.map((e, i) => {
               return (
@@ -680,22 +736,125 @@ const TrackListItem: FC<TVC> = ({
           {track.album ? track.album.name : header.name}
         </Typography>
       </TableCell>
-      <TableCell style={{ minWidth: 100 }}>
-        <Typography sx={{ color: "grey", fontWeight: "500" }}>
-          {track.album
-            ? track.album.release_date
-            : header.released_at
-            ? header.released_at
-            : new Date().toLocaleTimeString()}
-        </Typography>
-      </TableCell>
+
       <TableCell style={{ minWidth: 100 }}>
         <Typography sx={{ color: "grey", fontWeight: "500" }}>
           {formatDuration(track.duration_ms)}
         </Typography>
       </TableCell>
+      <TableCell sx={{ position: "relative" }} style={{ minWidth: 40 }}>
+        <PositionedMenu
+          name={track.name}
+          duration_ms={track.duration_ms}
+          artists={track.artists}
+          href={track.href}
+          id={track.id}
+          popularity={track.popularity}
+          type={track.type}
+        />
+      </TableCell>
     </TableRow>
   );
 };
 
+export function PositionedMenu(track: Track) {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const actions = [
+    {
+      icon: <Download />,
+      name: "Download",
+      onclick: async () => {
+        // send call download on this track
+        try {
+          await invoke("download", { tracks: [track] });
+        } catch (error) {
+          console.log(error);
+        }
+      },
+    },
+    {
+      icon: <Favorite />,
+      name: "Favourite",
+      onclick: async () => {
+        let permissionGranted = await isPermissionGranted();
+        if (!permissionGranted) {
+          const permission = await requestPermission();
+          permissionGranted = permission === "granted";
+        }
+        if (permissionGranted) {
+          sendNotification(`${track.name} has been added to favourites`);
+        }
+        return;
+      },
+    },
+    {
+      icon: <QueuePlayNext />,
+      name: "Play Next",
+      onclick: async () => {
+        try {
+          await invoke("play_next", { track: track });
+        } catch (error) {
+          console.log(error);
+        }
+      },
+    },
+    {
+      icon: <AddToQueueOutlined />,
+      name: "Add to Queue",
+      onclick: async () => {
+        // call play track with add and not play
+        play_tracks([track], true, false);
+      },
+    },
+  ];
+
+  return (
+    <div>
+      <IconButton
+        id="demo-positioned-button"
+        aria-controls={open ? "demo-positioned-menu" : undefined}
+        aria-haspopup="true"
+        aria-expanded={open ? "true" : undefined}
+        onClick={handleClick}
+      >
+        <ListSharp />
+      </IconButton>
+      <Menu
+        id="Menu"
+        aria-labelledby="demo-positioned-button"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: "top",
+          horizontal: "left",
+        }}
+        transformOrigin={{
+          vertical: "top",
+          horizontal: "left",
+        }}
+      >
+        {actions.map((e, i) => (
+          <MenuItem
+            sx={{ gap: "4px" }}
+            onClick={async () => {
+              handleClose();
+              await e.onclick();
+            }}
+          >
+            {e.icon} {e.name}
+          </MenuItem>
+        ))}
+      </Menu>
+    </div>
+  );
+}
 export default DetailPageView;
