@@ -15,7 +15,7 @@ import {
   Typography,
   lighten,
 } from "@mui/material";
-import { DefaultObjectsPreview, JomoNavigation, Page } from "../../../types";
+import { DefaultObjectsPreview, JomoNavigation, DefaultObjectPage } from "../../../types";
 import { FC, useState } from "react";
 import nextPage from "../../../util";
 interface MajorProp {
@@ -49,7 +49,7 @@ const FeaturedPlaylist: FC<MajorProp> = ({ data, setNav, nav }) => {
               gap: "2rem"
             }}
             onClick={() => {
-              let page: Page = { header: datum };
+              let page: DefaultObjectPage = { header: datum };
               nextPage(nav, setNav, page);
             }}
           >
@@ -143,7 +143,7 @@ const MainPlaylistCollage: FC<MajorProp> = ({ data, setNav, nav }) => {
               cols={item.col || 1}
               rows={item.row || 1}
               onClick={() => {
-                let page: Page = { header: item };
+                let page: DefaultObjectPage = { header: item };
                 nextPage(nav, setNav, page);
               }}
             >

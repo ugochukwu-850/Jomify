@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api";
-import { JomoNavigation, Page, Track } from "./types";
+import { JomoNavigation, DefaultObjectPage, Track, SimplifiedArtist, ArtistDetail } from "./types";
 
 /**
  *
@@ -13,7 +13,7 @@ import { JomoNavigation, Page, Track } from "./types";
 function nextPage(
   nav: JomoNavigation,
   setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>,
-  page?: Page
+  page?: DefaultObjectPage
 ) {
   // Create a new nav object
   let new_nav: JomoNavigation = {
@@ -103,10 +103,20 @@ async function play_tracks(tracks: Track[], isadd: boolean, play_now: boolean): 
   }
 }
 
+async function generate_artist_page(id: string): Promise<DefaultObjectPage | void> {
+  try {
+    let artist_detail: ArtistDetail = await invoke("artist_detail", {id: id});
+  return {header: artist_detail} as DefaultObjectPage;
+  } catch (error) {
+    console.log(error);
+  }
+}
+
 export {
   nextPage as default,
   previousPage,
   formatDuration,
   formatHeadDuration,
-  play_tracks
+  play_tracks,
+  generate_artist_page
 };

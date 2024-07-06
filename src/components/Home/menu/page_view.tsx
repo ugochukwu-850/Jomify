@@ -12,14 +12,16 @@ import {
   Typography,
   colors,
   Link,
+  Grid,
 } from "@mui/material";
-import { FC, useEffect, useState } from "react";
+import { FC, useContext, useEffect, useState } from "react";
 import {
   Album,
   DefaultObjectsPreview,
   JomoNavigation,
-  Page,
+  DefaultObjectPage,
   Track,
+  ArtistDetail,
 } from "../../../types";
 import {
   DownloadDoneOutlined,
@@ -39,45 +41,55 @@ import SpotifyIcon from "../../../assets/spotify.svg";
 import nextPage, {
   formatDuration,
   formatHeadDuration,
+  generate_artist_page,
   play_tracks,
 } from "../../../util";
 import { invoke } from "@tauri-apps/api/tauri";
 import { appWindow } from "@tauri-apps/api/window";
+import { JomoNavigationContext } from "..";
 interface PageProps {
-  nav: JomoNavigation;
-  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>;
+  page: DefaultObjectPage;
 }
 
-const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
+const DetailPageView: FC<PageProps> = ({ page }) => {
+  let nav_context = useContext(JomoNavigationContext);
+  if (nav_context) {
+    nav_context;
+  } else {
+    console.log("Navigating iweudhiweudwed");
+    return <></>;
+  }
+  let { nav, setNav } = nav_context;
   let [totalDownloaded, setTotalDownloaded] = useState(0);
   let [total_items, setTotalItems] = useState(0);
   let [downloading, setDownloading] = useState(false);
   let [download_complete, setDownloadComplete] = useState(false);
 
-  let { data, next, previous } = nav;
-  let page = data;
   useEffect(() => {
     console.log("Running get tracks effect");
     const getTracks = async () => {
       try {
-        console.log("Attempting to get tracks", page?.tracks);
-        if (!page?.tracks?.length) {
-          let [o_id, o_type] = [page?.header.id, page?.header.object_type];
+        console.log("Attempting to get tracks", page?.context);
+        if (!page?.context?.length) {
+          let [o_id, o_type] = [page?.header.id, page?.header.type];
           console.log("Running detail page view ", o_id, o_type);
-          let tracks: Track[] = await invoke("get_tracks", {
-            object: o_type,
-            id: o_id,
-          });
-          setTotalItems(tracks.length);
+          let context =
+            page.header.type == "artist"
+              ? await invoke<Album[]>("artist_albums", { id: o_id })
+              : await invoke<Track[]>("get_tracks", {
+                  object: o_type,
+                  id: o_id,
+                });
+          setTotalItems(context.length);
           setNav({
             ...nav,
             data: {
-              ...data,
-              tracks,
-            } as Page,
+              ...nav.data,
+              context: context,
+            } as DefaultObjectPage,
           });
 
-          return
+          return;
         }
 
         return;
@@ -89,8 +101,8 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
     const isDonwloaded = async () => {
       console.log("Trying to check if the tracks have been downloaded");
       try {
-        if (page?.tracks?.length) {
-          await invoke("is_downloaded", { tracks: page?.tracks });
+        if (page?.context?.length) {
+          await invoke("is_downloaded", { tracks: page?.context });
           return;
         }
       } catch (error) {
@@ -103,11 +115,7 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
 
   useEffect(() => {
     // if total downloaded changes check to set download or not
-    function loop_back() {
-      if (totalDownloaded) {
-        setTotalDownloaded((prev) => prev % total_items)
-      };
-    }
+
     function manage_donwload_status() {
       if (total_items == totalDownloaded) {
         setDownloadComplete(true);
@@ -119,9 +127,47 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
         }
       }
     }
-    loop_back();
     manage_donwload_status();
   }, [totalDownloaded, total_items]);
+  if (page.header.type == "artist") {
+    return (
+      <ArtistDetailDisplayView
+        header={page.header as ArtistDetail}
+        albums={page.context as Album[]}
+      />
+    );
+  } else {
+    return (
+      <ObjectDisplayView
+        header={page.header as DefaultObjectsPreview}
+        tracks={page.context as Track[]}
+      />
+    );
+  }
+};
+
+interface ObjectDisplayViewProps {
+  header: DefaultObjectsPreview;
+  tracks?: Track[];
+}
+interface ArtistDisplayViewProps {
+  header: ArtistDetail;
+  albums?: Album[];
+}
+
+const ObjectDisplayView: FC<ObjectDisplayViewProps> = ({ header, tracks }) => {
+  let nav_context = useContext(JomoNavigationContext);
+  if (nav_context) {
+    nav_context;
+  } else {
+    return <></>;
+  }
+  let { nav, setNav } = nav_context;
+  let [totalDownloaded, setTotalDownloaded] = useState(0);
+  let [total_items, setTotalItems] = useState(0);
+  let [downloading, setDownloading] = useState(false);
+  let [download_complete, setDownloadComplete] = useState(false);
+
   return (
     <Box>
       {/* Header displayer */}
@@ -138,7 +184,11 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
       >
         <CardMedia
           component={"img"}
-          image={page?.header.image[0].url}
+          image={
+            header.image
+              ? header.image[0].url
+              : "https://i.scdn.co/image/ab67616d00001e02ff9ca10b55ce82ae553c8228"
+          }
           sx={{ width: "240px", borderRadius: "12px" }}
         />
         <Box
@@ -150,10 +200,10 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
             margin: "auto 0",
           }}
         >
-          <Typography variant="body2">{page?.header.object_type}</Typography>
-          <Typography variant="h2">{page?.header.name}</Typography>
+          <Typography variant="body2">{header.type}</Typography>
+          <Typography variant="h2">{header.name}</Typography>
           <Typography variant="body1" sx={{ fontWeight: 500, color: "grey" }}>
-            {page?.header.description}
+            {header.description}
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "row" }}>
             <SpotifyIcon />
@@ -162,13 +212,27 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
               sx={{ textAlign: "baseline", margin: "auto 12px" }}
             >
               {"Created By "}
-              {page?.header.artist.map((e, i) => {
+              {header.artist.map((e, i) => {
                 console.log(e.name);
-                return <Link href={e.uri}>{e.name}</Link>;
+                return (
+                  <Link
+                    onClick={async (event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      let artist_page = await generate_artist_page(e.id);
+                      if (artist_page) {
+                        nextPage(nav, setNav, artist_page);
+                      }
+                    }}
+                    href={e.uri}
+                  >
+                    {e.name}
+                  </Link>
+                );
               })}
             </Typography>
             <Typography variant="body1">
-              {page?.tracks ? `${page?.tracks?.length} songs` : ""}
+              {tracks ? `${tracks?.length} songs` : ""}
             </Typography>
             {
               <Typography
@@ -178,8 +242,8 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
                 About{" "}
                 {formatDuration(
                   Math.floor(
-                    page?.tracks
-                      ? page.tracks.reduce((total, track) => {
+                    tracks
+                      ? tracks.reduce((total, track) => {
                           return total + track.duration_ms;
                         }, 0)
                       : 0
@@ -202,20 +266,20 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
                 }}
                 onClick={async () => {
                   console.log("Clicked");
-                  page?.tracks
+                  tracks
                     ? await play_tracks(
-                        page.tracks.map((track, _) => {
+                        tracks.map((track, _) => {
                           return {
                             ...track,
                             album: !track.album
                               ? ({
-                                  album_type: page.header.object_type,
-                                  artists: page.header.artist,
-                                  href: page.header.href,
-                                  id: page.header.id,
-                                  images: page.header.image,
-                                  name: page.header.name,
-                                  release_date: page.header.released_at,
+                                  type: header.type,
+                                  artists: header.artist,
+                                  href: header.href,
+                                  id: header.id,
+                                  images: header.image,
+                                  name: header.name,
+                                  release_date: header.released_at,
                                 } as Album)
                               : track.album,
                           } as Track;
@@ -230,20 +294,20 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
             <IconButton
               onClick={async () => {
                 console.log("Clicked");
-                page?.tracks
+                tracks
                   ? await play_tracks(
-                      page.tracks.map((track, _) => {
+                      tracks.map((track, _) => {
                         return {
                           ...track,
                           album: !track.album
                             ? ({
-                                album_type: page.header.object_type,
-                                artists: page.header.artist,
-                                href: page.header.href,
-                                id: page.header.id,
-                                images: page.header.image,
-                                name: page.header.name,
-                                release_date: page.header.released_at,
+                                type: header.type,
+                                artists: header.artist,
+                                href: header.href,
+                                id: header.id,
+                                images: header.image,
+                                name: header.name,
+                                release_date: header.released_at,
                               } as Album)
                             : track.album,
                         } as Track;
@@ -274,7 +338,7 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
               }}
               onClick={async () => {
                 try {
-                  await invoke("download", { tracks: page?.tracks });
+                  await invoke("download", { tracks: tracks });
                 } catch (error) {
                   console.log(error);
                 }
@@ -312,15 +376,13 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {page?.tracks?.map((track, index) => {
+              {tracks?.map((track, index) => {
                 return (
                   <TrackListItem
                     track={track}
                     index={index}
-                    header={page.header}
+                    header={header}
                     setDownloadedItem={setTotalDownloaded}
-                    setNav={setNav}
-                    nav={nav}
                   />
                 );
               })}
@@ -332,24 +394,161 @@ const DetailPageView: FC<PageProps> = ({ nav, setNav }) => {
   );
 };
 
+const ArtistDetailDisplayView: FC<ArtistDisplayViewProps> = ({
+  header,
+  albums,
+}) => {
+  return (
+    <Box>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "wrap",
+          placeContent: "baseline",
+          gap: "2em",
+
+          background: "transparent",
+        }}
+      >
+        <CardMedia
+          component={"img"}
+          image={
+            header.images
+              ? header.images[0].url
+              : "https://i.scdn.co/image/ab67616d00001e02ff9ca10b55ce82ae553c8228"
+          }
+          sx={{ width: "240px", borderRadius: "12px" }}
+        />
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: ".2em",
+            placeContent: "baseline",
+            margin: "auto 0",
+          }}
+        >
+          <Typography variant="body2">{header.type}</Typography>
+          <Typography variant="h2">{header.name}</Typography>
+          <Box sx={{ display: "flex", flexDirection: "row" }}>
+            <SpotifyIcon />
+            {header.genres.map((genre, i) => {
+              return (
+                <Link sx={{ margin: "auto 2px" }} key={i}>
+                  {genre}
+                </Link>
+              );
+            })}
+          </Box>
+          <Typography variant="body1" sx={{ color: "greenyellow" }}>
+            Followers {header.followers.total > 1000 ? Math.round(Math.floor(header.followers.total)/1000) : header.followers.total}k
+          </Typography>
+        </Box>
+      </Box>
+      {/**Album List view */}
+      <Grid container columns={18} justifyContent={"space-evenly"} gap={".5rem"} sx={{margin: "24px 6px"}}>
+        {albums?.map(
+          (
+            { type: album_type, artists, href, id, images, release_date, name },
+            index
+          ) => (
+            <Grid item xs={8} md={4}>
+              <AlbumComponent
+                type={album_type}
+                artists={artists}
+                href={href}
+                id={id}
+                images={images}
+                name={name}
+                release_date={release_date}
+              />
+            </Grid>
+          )
+        )}
+      </Grid>
+    </Box>
+  );
+};
+
+const AlbumComponent: FC<Album> = (album) => {
+  let nav_context = useContext(JomoNavigationContext);
+  if (nav_context) {
+    nav_context;
+  } else {
+    return <></>;
+  }
+  let { nav, setNav } = nav_context;
+  let page = {
+    header: {
+      artist: album.artists,
+      href: album.href,
+      id: album.id,
+      type: album.type,
+      image: album.images,
+      name: album.name,
+      released_at: album.release_date,
+    } as DefaultObjectsPreview,
+  } as DefaultObjectPage;
+  return (
+    <Box
+    sx={{width: "100%", height: "100%", minHeight: "250px", "&: hover": {background: "rgba(122, 125, 125, .1)", borderRadius: "6px", cursor: "pointer"}}}
+      onClick={async () => {
+        // onclick create new page with the header and no tracks
+        nextPage(nav, setNav, { ...page, auto_play: false });
+      }}
+    >
+      <CardMedia
+        image={album.images[0].url}
+        
+        sx={{minHeight: "200px", borderRadius: "6px" }}
+      >
+        <IconButton
+          onClick={async () => {
+            // onclick create new page with the header and no tracks
+            nextPage(nav, setNav, { ...page, auto_play: true });
+          }}
+        >
+          <PlayCircleFilledOutlined sx={{ fontSize: "48px" }} />
+        </IconButton>
+      </CardMedia>
+      <Box>
+        <Typography
+          variant="h6"
+          sx={{ fontWeight: "700", color: colors.grey[500] }}
+        >
+          {album.name}
+        </Typography>
+        <Typography
+          variant="body1"
+          sx={{ fontWeight: "500", color: colors.grey[700] }}
+        >
+          {album.release_date}
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
 interface TVC {
   track: Track;
   index: number;
   header: DefaultObjectsPreview;
-  setDownloadedItem: React.Dispatch<React.SetStateAction<number>>,
-  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>,
-  nav: JomoNavigation,
+  setDownloadedItem: React.Dispatch<React.SetStateAction<number>>;
 }
 const TrackListItem: FC<TVC> = ({
   index,
   track,
   header,
   setDownloadedItem,
-  setNav,
-  nav,
 }) => {
   let [downloaded, setDownload] = useState(false);
-
+  let nav_context = useContext(JomoNavigationContext);
+  if (nav_context) {
+    nav_context;
+  } else {
+    return <></>;
+  }
+  let { nav, setNav } = nav_context;
   useEffect(() => {
     let listen_if_downloaded = async () => {
       try {
@@ -369,7 +568,7 @@ const TrackListItem: FC<TVC> = ({
     };
     listen_if_downloaded();
   }, []);
-  
+
   return (
     <TableRow
       sx={{
@@ -386,7 +585,7 @@ const TrackListItem: FC<TVC> = ({
                 ...track,
                 album: !track.album
                   ? ({
-                      album_type: header.object_type,
+                      type: header.type,
                       artists: header.artist,
                       href: header.href,
                       id: header.id,
@@ -402,7 +601,7 @@ const TrackListItem: FC<TVC> = ({
           );
         }}
       >
-        {downloaded? <DownloadDoneOutlined/> : <PlayArrow />}
+        {downloaded ? <DownloadDoneOutlined /> : <PlayArrow />}
       </TableCell>
       <TableCell
         sx={{
@@ -429,6 +628,14 @@ const TrackListItem: FC<TVC> = ({
             {track.artists.map((e, i) => {
               return (
                 <Link
+                  onClick={async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    let artist_page = await generate_artist_page(e.id);
+                    if (artist_page) {
+                      nextPage(nav, setNav, artist_page);
+                    }
+                  }}
                   sx={{
                     color: colors.grey[700],
                     fontWeight: "500",
@@ -460,10 +667,10 @@ const TrackListItem: FC<TVC> = ({
                   id: track.album.id,
                   image: track.album.images,
                   name: track.album.name,
-                  object_type: track.album.album_type,
+                  type: track.album.type,
                   released_at: track.album.release_date,
                 } as DefaultObjectsPreview,
-              } as Page;
+              } as DefaultObjectPage;
 
               // call next page on the item
               nextPage(nav, setNav, page);

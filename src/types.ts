@@ -60,10 +60,10 @@ export interface HomeResponse {
 export interface DefaultObjectsPreview {
   name: string;
   description?: string;
-  artist: Artist[];
+  artist: SimplifiedArtist[];
   image: Image[];
   id: string;
-  object_type: string;
+  type: string;
   href: string;
   col?: number;
   row?: number;
@@ -71,7 +71,7 @@ export interface DefaultObjectsPreview {
   released_at?: string;
 }
 
-export interface Artist {
+export interface SimplifiedArtist {
   href: string;
   id: string;
   name: string;
@@ -85,8 +85,8 @@ interface Image {
   width?: number;
 }
 export interface Album {
-  album_type: string,
-  artists: Artist[] | Artist,
+  type: string,
+  artists: SimplifiedArtist[] | SimplifiedArtist,
   href: string,
   id: string,
   images: Image[],
@@ -102,27 +102,47 @@ export interface Track {
   duration_ms: number;
   isPlaying?: boolean;
   album?: Album,
-  artists: Artist[];
+  artists: SimplifiedArtist[];
   href: URL;
   id: string;
   popularity: number;
-  object_type: string;
+  type: string;
 
   play?: () => {};
 }
 
-export interface Page {
-  header: DefaultObjectsPreview;
-  tracks?: Track[];
+export interface DefaultObjectPage {
+  header: DefaultObjectsPreview | ArtistDetail;
+  context?: Track[] | Album[];
   auto_play?: boolean,
+}
+
+
+export interface ArtistDetail extends SimplifiedArtist {
+  id: string,
+  name: string;
+  images: Image[];
+  type: string,
+  popularity: number,
+  genres: string[],
+  followers: Followers,
+}
+
+interface Followers {
+  href?: string,
+  total: number
 }
 
 export interface JomoNavigation {
   previous: null | JomoNavigation;
   next: null | JomoNavigation;
-  data: Page | null
+  data: DefaultObjectPage | null
 }
 
+export interface JomoNavigationContextShape {
+  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>,
+  nav: JomoNavigation
+}
 
 export interface PlayingAction {
   playing: boolean

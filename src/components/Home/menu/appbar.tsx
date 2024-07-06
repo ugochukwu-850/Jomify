@@ -15,7 +15,7 @@ import {
 import { JomoAppSearch } from "../theme";
 import styles from "../index.module.scss";
 import { FC } from "react";
-import { JomoNavigation, Page } from "../../../types";
+import { JomoNavigation, DefaultObjectPage } from "../../../types";
 import nextPage, { previousPage } from "../../../util";
 
 interface ModelProps {

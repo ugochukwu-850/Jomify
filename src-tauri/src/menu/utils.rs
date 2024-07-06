@@ -4,7 +4,7 @@ use serde::{de::{self, DeserializeOwned, MapAccess, Visitor}, ser::SerializeStru
 
 use crate::{menu::{auth_structures::User, core_structures::HomeResponse}, AppState, JomoQueue};
 
-use super::{errors::MyError, gear_structures::Artist};
+use super::{errors::MyError, gear_structures::SimplifiedArtist};
 
 pub fn get_data_from_db<T: DeserializeOwned + Serialize>(
     db: &tauri::State<'_, sled::Db>,

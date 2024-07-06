@@ -14,7 +14,7 @@ use crate::{AppState, JomoQueue};
 use super::auth_structures::{Settings, SupportedApps, User};
 use super::core_structures::HomeResponse;
 use super::errors::MyError;
-use super::gear_structures::{FeaturedPlaylistRequest, Track, Tracks};
+use super::gear_structures::{AlbumItem, Artist, FeaturedPlaylistRequest, Track, Tracks};
 use super::utils::get_data_from_db;
 
 use anyhow::anyhow;
@@ -758,9 +758,117 @@ pub fn is_downloaded(window: Window, tracks: Vec<Track>) {
             println!("This track is in downloads: {}", track.id);
 
             let _ = window.emit(&format!("downloaded-{}", track.id), "downloaded");
-        }
-        else {
+        } else {
             println!("NOT IN DOWNLOAD: {}", track.id);
         }
     }
+}
+
+#[command]
+/// Get the current queue for render of the queue component
+/// NB: Further queue update would be handled by events as this command is only used on initialization
+pub fn get_queue(window: Window) -> Result<Vec<Track>, MyError> {
+    let state = window.state::<AppState>();
+    let queue_tracks = state
+        .queue
+        .read()
+        .map_err(|e| MyError::Custom(format!("Function get tracks: this lock is poisoned")))?
+        .que_track
+        .clone();
+    Ok(queue_tracks)
+}
+
+#[command]
+/// - Returns the current head track
+/// ##### | Should be used to get current head track from the front end by player component
+pub fn get_head(window: Window) -> Result<Track, MyError> {
+    let state = window.state::<AppState>();
+    let queue_tracks = state
+        .queue
+        .read()
+        .map_err(|e| MyError::Custom(format!("Function get tracks: this lock is poisoned")))?;
+    if let Some(e) = queue_tracks.head {
+        return Ok(queue_tracks.que_track[e as usize].clone());
+    } else {
+        return Err(MyError::Custom(format!("You dont have a head track")));
+    }
+}
+
+#[command]
+/// #### This function takes a track `Track` type
+///
+/// - It checks the current queue and if this track is not the next
+/// - it adds it to the queue as the next track else it does nothing
+/// - It does not immeaditely play the track though
+/// - It also calls process tracks on this track so this track is always ready to play when needed
+pub fn play_next(window: Window, track: Track) {
+    let state = window.state::<AppState>();
+    let mut queue = state.queue.write().expect("Failed to get lock");
+
+    // add the track to the queue if it is not already the next
+    let head = if let Some(e) = queue.head {
+        e
+    } else {
+        return;
+    };
+    let queue_len = queue.que_track.len();
+
+    // if the head is not the same as the requested next add it else do nothing
+    let next_head_index = (head.wrapping_add(1) % queue_len as u32) as usize;
+    let next_track = &queue.que_track[next_head_index];
+    if next_track.id == track.id {
+        return;
+    }
+
+    // else shift the current head to next and set the next to this track
+    queue.head = Some(next_head_index as u32);
+    let track_as_string = serde_json::to_string(&[&track]).unwrap();
+    queue.que_track.insert(next_head_index, track);
+
+    // call process track and emit queue has changed
+    window.trigger("process-tracks", Some(track_as_string));
+    let _ = window.emit(
+        "queue-changed",
+        serde_json::to_string(&queue.que_track).expect("Failed to parse"),
+    );
+}
+
+/// Command to retrive artist full data
+/// This commands returns a list of albums
+#[command]
+pub async fn artist_detail(
+    id: String,
+    window: Window,
+    db: tauri::State<'_, sled::Db>,
+) -> Result<Artist, MyError> {
+    let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
+    let user = match window.state::<AppState>().user.lock() {
+        Ok(e) => e.clone(),
+        Err(_) => return var_name,
+    };
+    if let Some(user) = user {
+        let home = user.get_artist(id, db).await;
+        return home;
+    };
+
+    Err(anyhow::anyhow!("Error could not find the user and therefore could not get artist cause error occuredd"))?
+}
+
+#[command]
+pub async fn artist_albums(
+    id: String,
+    window: Window,
+    db: tauri::State<'_, sled::Db>,
+) -> Result<Vec<AlbumItem>, MyError> {
+    let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
+    let user = match window.state::<AppState>().user.lock() {
+        Ok(e) => e.clone(),
+        Err(_) => return var_name,
+    };
+    if let Some(user) = user {
+        let home = user.get_artist_albums(id, db).await;
+        return home;
+    };
+
+    Err(anyhow::anyhow!("Error could not find the user and therefore could not get artist cause error occuredd"))?
 }

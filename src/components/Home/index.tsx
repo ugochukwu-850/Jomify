@@ -28,6 +28,7 @@ import {
   QueueSideMenuData,
   RightSideMenu,
   JomoNavigation,
+  JomoNavigationContextShape,
 } from "../../types";
 import { grey } from "@mui/material/colors";
 import {
@@ -43,6 +44,7 @@ import {
 import { appWindow } from "@tauri-apps/api/window";
 import { play_tracks } from "../../util";
 const RightSideMenuContext = createContext<null | QueueMenuContext>(null);
+const JomoNavigationContext = createContext<JomoNavigationContextShape | undefined>(undefined);
 
 const Home = () => {
   console.log("Running Home effect");
@@ -120,190 +122,112 @@ const Home = () => {
   return (
     <ThemeProvider theme={homeTheme}>
       <CssBaseline />
-      <RightSideMenuContext.Provider
-        value={{ data: QueueMenu, setData: setQueueMenu } as QueueMenuContext}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            flexWrap: "nowrap",
-            placeContent: "space-between",
-            padding: "4px 0",
-            height: "100vh",
-            maxHeight: "100vh",
-            minWidth: "800px",
-          }}
+      <JomoNavigationContext.Provider value={{nav: nav, setNav: setNav}}>
+        <RightSideMenuContext.Provider
+          value={{ data: QueueMenu, setData: setQueueMenu } as QueueMenuContext}
         >
-          <Grid
-            container
-            columns={20}
+          <Box
             sx={{
-              padding: "8px 0",
-              paddingRight: "8px",
-              flex: "1",
-              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              flexWrap: "nowrap",
+              placeContent: "space-between",
+              padding: "4px 0",
+              height: "100vh",
+              maxHeight: "100vh",
+              minWidth: "800px",
             }}
           >
             <Grid
-              item
-              xs={2}
-              md={4}
-              sx={{ overflow: "hidden", padding: "0 6px" }}
-            >
-              <HomeSideMenu />
-            </Grid>
-            <Grid
-              item
-              xs={QueueMenu.open ? 14 : 18}
-              md={QueueMenu.open ? 12 : 16}
-              height={"100%"}
-              sx={{ overflow: "hidden" }}
-            >
-              <Main props={homeData} nav={nav} setNav={setNav} />
-            </Grid>
-            <Grid
-              item
-              xs={QueueMenu.open ? 4 : 0}
-              display={QueueMenu.open ? "flex" : "none"}
-              height={"100%"}
+              container
+              columns={20}
               sx={{
-                background: "#121212",
-                borderRadius: "12px",
-                margin: "0 auto",
-                flexDirection: "column",
-                gap: ".2em",
-                padding: "2px 12px",
+                padding: "8px 0",
+                paddingRight: "8px",
+                flex: "1",
                 overflow: "hidden",
               }}
             >
-              <AppBar
-                elevation={0}
-                position="sticky"
+              <Grid
+                item
+                xs={2}
+                md={4}
+                sx={{ overflow: "hidden", padding: "0 6px" }}
+              >
+                <HomeSideMenu />
+              </Grid>
+              <Grid
+                item
+                xs={QueueMenu.open ? 14 : 18}
+                md={QueueMenu.open ? 12 : 16}
+                height={"100%"}
+                sx={{ overflow: "hidden" }}
+              >
+                <Main props={homeData} nav={nav} setNav={setNav} />
+              </Grid>
+              <Grid
+                item
+                xs={QueueMenu.open ? 4 : 0}
+                display={QueueMenu.open ? "flex" : "none"}
+                height={"100%"}
                 sx={{
-                  background: "transparent",
-                  margin: "12px 4px",
-                  display: "flex",
-                  flexDirection: "row",
-                  placeContent: "space-between",
+                  background: "#121212",
+                  borderRadius: "12px",
+                  margin: "0 auto",
+                  flexDirection: "column",
+                  gap: ".2em",
+                  padding: "2px 12px",
+                  overflow: "hidden",
                 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 900 }}>
-                  {QueueMenu.context.header}
-                </Typography>
-                <IconButton
-                  onClick={() => {
-                    setQueueMenu({
-                      ...QueueMenu,
-                      open: !QueueMenu.open,
-                    });
-                  }}
-                >
-                  <Close />
-                </IconButton>
-              </AppBar>
-              {QueueMenu.context.tracks.length || current_playing_track ? (
-                <List
+                <AppBar
+                  elevation={0}
+                  position="sticky"
                   sx={{
-                    overflow: "hidden",
-                    overflowY: "scroll",
-                    padding: "4px",
+                    background: "transparent",
+                    margin: "12px 4px",
+                    display: "flex",
+                    flexDirection: "row",
+                    placeContent: "space-between",
                   }}
                 >
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      fontWeight: 900,
-                      color: grey[500],
-                      fontSize: "large",
-                    }}
-                  >
-                    Now Playing
+                  <Typography variant="h6" sx={{ fontWeight: 900 }}>
+                    {QueueMenu.context.header}
                   </Typography>
-                  <ListItem
-                    key={current_playing_track?.id}
-                    sx={{
-                      gap: "6px",
-                      marginBottom: "24px",
-                      padding: "2px 6px",
-                      "& .MuiListItemIcon-root": {
-                        display: "none",
-                      },
-                      "&:hover": {
-                        background: colors.grey[900],
-                        borderRadius: "6px",
-                        transition: "ease-in .2s",
-                        cursor: "pointer",
-                        "& .MuiListItemIcon-root": {
-                          display: "flex",
-                        },
-                      },
+                  <IconButton
+                    onClick={() => {
+                      setQueueMenu({
+                        ...QueueMenu,
+                        open: !QueueMenu.open,
+                      });
                     }}
                   >
-                    <ListItemAvatar>
-                      <Avatar
-                        alt={current_playing_track?.name}
-                        src={current_playing_track?.album?.images[0].url}
-                      />
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        <Typography
-                          sx={{ color: colors.green[600], fontWeight: 500 }}
-                        >
-                          {current_playing_track?.name}
-                        </Typography>
-                      }
-                      secondary={
-                        <Typography
-                          sx={{ color: colors.grey[600], fontWeight: 400 }}
-                        >
-                          {
-                            <>
-                              {current_playing_track?.artists.map((e, _) => (
-                                <Link
-                                  href={e.id}
-                                  sx={{
-                                    color: colors.grey[600],
-                                    fontWeight: 400,
-                                    margin: "auto 4px",
-                                  }}
-                                >
-                                  {e.name}
-                                </Link>
-                              ))}
-                            </>
-                          }
-                        </Typography>
-                      }
-                    />
-                  </ListItem>
-                  <Typography
-                    variant="body1"
+                    <Close />
+                  </IconButton>
+                </AppBar>
+                {QueueMenu.context.tracks.length || current_playing_track ? (
+                  <List
                     sx={{
-                      fontWeight: 900,
-                      color: grey[500],
-                      fontSize: "large",
+                      overflow: "hidden",
+                      overflowY: "scroll",
+                      padding: "4px",
                     }}
                   >
-                    Upcoming
-                  </Typography>
-                  {QueueMenu.context.tracks.map((track, track_index) => (
-                    <ListItem
-                      onClick={async () => {
-                        console.log("Clicked");
-                        page?.tracks
-                          ? await play_tracks(
-                              [track],
-                              true,
-                              true
-                            )
-                          : false;
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        fontWeight: 900,
+                        color: grey[500],
+                        fontSize: "large",
                       }}
-                      key={track.id+track_index}
+                    >
+                      Now Playing
+                    </Typography>
+                    <ListItem
+                      key={current_playing_track?.id}
                       sx={{
                         gap: "6px",
-                        margin: "4px 2px",
+                        marginBottom: "24px",
                         padding: "2px 6px",
                         "& .MuiListItemIcon-root": {
                           display: "none",
@@ -321,71 +245,147 @@ const Home = () => {
                     >
                       <ListItemAvatar>
                         <Avatar
-                          sx={{
-                            borderRadius: "12px",
-                            width: "48px",
-                            height: "48px",
-                          }}
-                          alt="Remy Sharp"
-                          src={track.album?.images[0].url}
+                          alt={current_playing_track?.name}
+                          src={current_playing_track?.album?.images[0].url}
                         />
                       </ListItemAvatar>
                       <ListItemText
                         primary={
                           <Typography
-                            sx={{ color: colors.grey[400], fontWeight: 500 }}
+                            sx={{ color: colors.green[600], fontWeight: 500 }}
                           >
-                            {track.name}
+                            {current_playing_track?.name}
                           </Typography>
                         }
-                        secondary={track.artists.map((a, _) => (
-                          <Link
-                            href={a.id}
-                            sx={{
-                              color: colors.grey[600],
-                              fontWeight: 400,
-                              margin: "auto 4px",
-                            }}
+                        secondary={
+                          <Typography
+                            sx={{ color: colors.grey[600], fontWeight: 400 }}
                           >
-                            {a.name}
-                          </Link>
-                        ))}
+                            {
+                              <>
+                                {current_playing_track?.artists.map((e, _) => (
+                                  <Link
+                                    href={e.id}
+                                    sx={{
+                                      color: colors.grey[600],
+                                      fontWeight: 400,
+                                      margin: "auto 4px",
+                                    }}
+                                  >
+                                    {e.name}
+                                  </Link>
+                                ))}
+                              </>
+                            }
+                          </Typography>
+                        }
                       />
-                      <ListItemIcon
+                    </ListItem>
+                    <Typography
+                      variant="body1"
+                      sx={{
+                        fontWeight: 900,
+                        color: grey[500],
+                        fontSize: "large",
+                      }}
+                    >
+                      Upcoming
+                    </Typography>
+                    {QueueMenu.context.tracks.map((track, track_index) => (
+                      <ListItem
                         onClick={async () => {
-                          // remove from the playlist
-                          try {
-                            let _: string = await invoke(
-                              "remove_from_playlist",
-                              { index: track_index }
-                            );
-                          } catch (error) {
-                            console.log(error);
-                          }
+                          console.log("Clicked");
+                          page?.context
+                            ? await play_tracks([track], true, true)
+                            : false;
+                        }}
+                        key={track.id + track_index}
+                        sx={{
+                          gap: "6px",
+                          margin: "4px 2px",
+                          padding: "2px 6px",
+                          "& .MuiListItemIcon-root": {
+                            display: "none",
+                          },
+                          "&:hover": {
+                            background: colors.grey[900],
+                            borderRadius: "6px",
+                            transition: "ease-in .2s",
+                            cursor: "pointer",
+                            "& .MuiListItemIcon-root": {
+                              display: "flex",
+                            },
+                          },
                         }}
                       >
-                        <RemoveSharp fontSize="small" />
-                      </ListItemIcon>
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
-                <>
-                  <Typography
-                    variant="h6"
-                    sx={{ margin: "auto", color: colors.grey[400] }}
-                  >
-                    Nothing to Play
-                  </Typography>
-                </>
-              )}
+                        <ListItemAvatar>
+                          <Avatar
+                            sx={{
+                              borderRadius: "12px",
+                              width: "48px",
+                              height: "48px",
+                            }}
+                            alt="Remy Sharp"
+                            src={track.album?.images[0].url}
+                          />
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={
+                            <Typography
+                              sx={{ color: colors.grey[400], fontWeight: 500 }}
+                            >
+                              {track.name}
+                            </Typography>
+                          }
+                          secondary={track.artists.map((a, _) => (
+                            <Link
+                              href={a.id}
+                              sx={{
+                                color: colors.grey[600],
+                                fontWeight: 400,
+                                margin: "auto 4px",
+                              }}
+                            >
+                              {a.name}
+                            </Link>
+                          ))}
+                        />
+                        <ListItemIcon
+                          onClick={async () => {
+                            // remove from the playlist
+                            try {
+                              let _: string = await invoke(
+                                "remove_from_playlist",
+                                { index: track_index }
+                              );
+                            } catch (error) {
+                              console.log(error);
+                            }
+                          }}
+                        >
+                          <RemoveSharp fontSize="small" />
+                        </ListItemIcon>
+                      </ListItem>
+                    ))}
+                  </List>
+                ) : (
+                  <>
+                    <Typography
+                      variant="h6"
+                      sx={{ margin: "auto", color: colors.grey[400] }}
+                    >
+                      Nothing to Play
+                    </Typography>
+                  </>
+                )}
+              </Grid>
             </Grid>
-          </Grid>
-          <MusicPlayer />
-        </Box>
-      </RightSideMenuContext.Provider>
+            <MusicPlayer />
+          </Box>
+        </RightSideMenuContext.Provider>
+      </JomoNavigationContext.Provider>
     </ThemeProvider>
   );
 };
 
-export { Home as default, RightSideMenuContext };
+export { Home as default, RightSideMenuContext, JomoNavigationContext };

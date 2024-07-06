@@ -28,7 +28,7 @@ pub struct PlaylistItem {
     pub id: String,
     pub images: Vec<Image>,
     pub name: String,
-    pub owner: Artist,
+    pub owner: SimplifiedArtist,
     // pub primary_color: Option<String>,
     // pub public: bool,
     // pub snapshot_id: String,
@@ -64,6 +64,18 @@ pub struct Image {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 
+pub struct SimplifiedArtist {
+    // pub external_urls: ExternalUrls,
+    pub href: String,
+    pub id: String,
+    #[serde(alias = "display_name")]
+    pub name: String,
+    // pub type_: String,
+    pub uri: String,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+
 pub struct Artist {
     // pub external_urls: ExternalUrls,
     pub href: String,
@@ -72,6 +84,18 @@ pub struct Artist {
     pub name: String,
     // pub type_: String,
     pub uri: String,
+    pub images: Vec<Image>,
+    #[serde(rename = "type")]
+    pub object_type: String,
+    pub followers: Followers,
+    pub genres: Vec<String>,
+    pub popularity: u32
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Followers {
+    pub href: Option<String>,
+    pub total: u32
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -86,7 +110,7 @@ pub struct TrackDetail {
     #[serde(alias = "duration_ms")]
     pub duration: u128,
     pub album: AlbumItem,
-    pub artists: Vec<Artist>,
+    pub artists: Vec<SimplifiedArtist>,
     pub url: String,
     pub id: String,
     pub popularity: i32,
@@ -112,8 +136,9 @@ pub struct Albums {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 
 pub struct AlbumItem {
+    #[serde(rename = "type")]
     pub album_type: String,
-    pub artists: Vec<Artist>,
+    pub artists: Vec<SimplifiedArtist>,
     // pub available_markets: Vec<String>,
     // pub external_urls: ExternalUrls,
     pub href: String,
@@ -157,24 +182,26 @@ pub struct PlaylistTrackItemDetail {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Track {
     pub album: Option<AlbumItem>,
-    pub artists: Vec<Artist>,
+    pub artists: Vec<SimplifiedArtist>,
     pub name: String,
     pub id: String,
     pub duration_ms: u128,
     pub href: String,
     pub popularity: i32,
-    #[serde(alias = "type")]
+    #[serde(rename = "type")]
+    #[serde(alias ="object_type")]
     pub object_type: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AlbumTrackDetail {
-    pub artists: Vec<Artist>,
+    pub artists: Vec<SimplifiedArtist>,
     pub name: String,
     pub id: String,
     pub duration_ms: u128,
     pub href: String,
-    #[serde(alias="type")]
+    #[serde(rename="type")]
+    #[serde(alias ="object_type")]
     pub object_type: String,
 }
 

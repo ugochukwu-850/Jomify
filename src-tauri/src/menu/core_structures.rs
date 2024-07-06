@@ -3,14 +3,16 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::fmt::format;
 
-use crate::{menu::gear_structures::{AlbumTrackItemResponse, PlaylistTrackItemsResponse}, AppState};
+use crate::{
+    menu::gear_structures::{AlbumTrackItemResponse, PlaylistTrackItemsResponse},
+    AppState,
+};
 
 use super::{
     auth_structures::User,
     errors::MyError,
     gear_structures::{
-        Albums, Artist, Track, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse,
-        PlaylistItem, Playlists,
+        AlbumItem, Albums, Artist, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse, PlaylistItem, Playlists, SimplifiedArtist, Track
     },
 };
 
@@ -25,9 +27,10 @@ pub struct HomeResponse {
 pub struct DefaultObjectsPreview {
     pub name: String,
     pub description: Option<String>,
-    pub artist: Vec<Artist>,
+    pub artist: Vec<SimplifiedArtist>,
     pub image: Vec<Image>,
     pub id: String,
+    #[serde(rename = "type")]
     pub object_type: String,
     pub href: String,
     pub col: Option<i16>,
@@ -189,6 +192,68 @@ impl User {
         HomeResponse::new(self.get_auth_creds(db).await?.access_token).await
     }
 
+    pub async fn get_artist(&self, id: String, db: tauri::State<'_, sled::Db>) -> Result<Artist, MyError> {
+        let access_token = self.get_auth_creds(db).await?.access_token;
+        let client = Client::new();
+
+        match client
+            .get(format!(
+                "https://api.spotify.com/v1/artists/{id}"
+            ))
+            .bearer_auth(access_token)
+            .send()
+            .await
+        {
+            Ok(response) => {
+                let status = response.status().is_success();
+                let text = &response.text().await?;
+                if status {
+                    // parse the text to featured playlist
+                    let item: Artist = serde_json::from_str(text)?;
+                    return Ok(item);
+                }
+
+                Err(MyError::Custom(text.to_owned()))
+            }
+            Err(e) => Err(MyError::Custom(format!(
+                "Error from reqesting the artist full data: {}",
+                e.to_string()
+            ))),
+        }
+    }
+
+    pub async fn get_artist_albums(&self, id: String, db: tauri::State<'_, sled::Db>) -> Result<Vec<AlbumItem>, MyError> {
+        let access_token = self.get_auth_creds(db).await?.access_token;
+        let client = Client::new();
+        let queries = [("offset", "0"), ("limit", "50"), ("include_groups", "album,single,appears_on")];
+
+        match client
+            .get(format!(
+                "https://api.spotify.com/v1/artists/{id}/albums"
+            ))
+            .query(&queries)
+            .bearer_auth(access_token)
+            .send()
+            .await
+        {
+            Ok(response) => {
+                let status = response.status().is_success();
+                let text = &response.text().await?;
+                if status {
+                    // parse the text to featured playlist
+                    let items: Albums = serde_json::from_str(text)?;
+                    return Ok(items.items);
+                }
+
+                Err(MyError::Custom(text.to_owned()))
+            }
+            Err(e) => Err(MyError::Custom(format!(
+                "Error from reqesting the tracks for albums: {}",
+                e.to_string()
+            ))),
+        }
+    }
+
     pub async fn get_tracks(
         &self,
         object_id: String,
@@ -200,7 +265,7 @@ impl User {
         let queries = [("offset", "0"), ("limit", "50")];
 
         match object_type.as_str() {
-            "album" | "single" | "compilation" => {
+            "album" | "single" | "compilation" | "ep" => {
                 // make request and parse to list of tracks for albums
                 match client
                     .get(format!(
@@ -245,7 +310,10 @@ impl User {
                             // parse the text to featured playlist
                             println!("Text response length {}", text.len());
                             let items: PlaylistTrackItemsResponse = serde_json::from_str(text)?;
-                            println!("Playlist track response response lenght {:?}", items.items.len());
+                            println!(
+                                "Playlist track response response lenght {:?}",
+                                items.items.len()
+                            );
                             return Ok(items.track_details());
                         }
 

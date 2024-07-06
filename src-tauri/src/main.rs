@@ -164,7 +164,9 @@ fn main() {
             menu::commands::add_to_queue,
             menu::commands::remove_from_playlist,
             menu::commands::download,
-            menu::commands::is_downloaded
+            menu::commands::is_downloaded,
+            menu::commands::artist_detail,
+            menu::commands::artist_albums
         ])
         .on_window_event(|event| {
             // create a handler closure for default exit and save protocol

@@ -3,7 +3,7 @@ import JomoAppBar from "./appbar";
 import FeaturedPlaylist, { MainPlaylistDiver } from "./content_menu";
 import {
   HomeResponse,
-  Page as DetailPage,
+  DefaultObjectPage as DetailPage,
   JomoNavigation,
 } from "../../../types";
 import { FC, useContext, useEffect, useState } from "react";
@@ -48,7 +48,7 @@ const Main: FC<mainProp> = ({ props, nav, setNav}): JSX.Element => {
             <MainPlaylistDiver data={props.gallery} setNav={setNav} nav={nav} />
           </>
         ) : (
-          <DetailPageView nav={nav} setNav={setNav} />
+          <DetailPageView page={nav.data}/>
         )}
       </Box>
     </Box>

@@ -44,13 +44,25 @@ import { JomoSlider } from "../theme";
 import { invoke } from "@tauri-apps/api/tauri";
 import { FC, useContext, useEffect, useState } from "react";
 import { appWindow } from "@tauri-apps/api/window";
-import { PlayingAction, Track, QueueMenuContext, Artist } from "../../../types";
-import { formatDuration } from "../../../util";
-import { RightSideMenuContext } from "..";
+import {
+  PlayingAction,
+  Track,
+  QueueMenuContext,
+  SimplifiedArtist,
+} from "../../../types";
+import nextPage, { formatDuration, generate_artist_page } from "../../../util";
+import { JomoNavigationContext, RightSideMenuContext } from "..";
 interface TrackFeed {
   track: Track | undefined;
 }
 const PlayerDetails: FC<TrackFeed> = ({ track }) => {
+  let nav_context = useContext(JomoNavigationContext);
+  if (nav_context) {
+    nav_context;
+  } else {
+    return <></>;
+  }
+  let { nav, setNav } = nav_context;
   return (
     <Box sx={{ display: "flex", flexDirection: "row" }}>
       <CardMedia
@@ -75,7 +87,19 @@ const PlayerDetails: FC<TrackFeed> = ({ track }) => {
           {track?.artists ? (
             <>
               {track.artists.map((e, _) => (
-                <Link sx={{ padding: "0 4px" }} href={e.id}>
+                <Link
+                  sx={{ padding: "0 4px" }}
+                  href={e.id}
+                  onClick={async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    console.log(e.id);
+                    let artist_page = await generate_artist_page(e.id);
+                    if (artist_page) {
+                      nextPage(nav, setNav, artist_page);
+                    }
+                  }}
+                >
                   {e.name}
                 </Link>
               ))}
