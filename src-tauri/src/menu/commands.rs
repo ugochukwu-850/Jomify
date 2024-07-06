@@ -25,6 +25,7 @@ use rodio::{queue, Decoder, OutputStream, Sink, Source};
 use rusty_ytdl::search::{SearchResult, YouTube};
 use rusty_ytdl::{Video, VideoOptions, VideoQuality, VideoSearchOptions};
 use serde_json::json;
+use tauri::api::notification::Notification;
 use tauri::api::path::app_data_dir;
 use tauri::{command, window, Manager, Window};
 
@@ -315,6 +316,10 @@ pub async fn process_queue(
                     );
                 } else {
                     // emit message processing with ffmpeg did not go so well
+                    let _ = Notification::new(&window.config().tauri.bundle.identifier)
+                        .title("E601: Audio Preprocessing Error")
+                        .body(format!("FFMPEG RAN INTO AN ERROR WHILE PROCESSING {}", track.name))
+                        .show();
                     continue;
                 }
             }
@@ -436,7 +441,7 @@ pub fn play_queue(
         *repeat_clone.write().expect("Failed to write lock repeat") = !repeat;
     });
 
-    'player_loop: loop {
+    '_player_loop: loop {
         // Only if sink is playing should you try to play the next song
         if !sink.is_paused() && queue.read().expect("Failed to read").que_track.len() > 0 {
             // Read the queue data
@@ -570,7 +575,7 @@ pub fn play_queue(
                 sink.stop();
                 // Append the new source file
                 println!("Appending source to play it");
-                
+
                 sink.append(source);
 
                 // emit that the current playing is now not loading
@@ -595,7 +600,6 @@ pub fn play_queue(
         }
         thread::sleep(Duration::from_secs(1));
     }
-
 }
 
 #[command]
@@ -846,7 +850,9 @@ pub async fn artist_detail(
         return home;
     };
 
-    Err(anyhow::anyhow!("Error could not find the user and therefore could not get artist cause error occuredd"))?
+    Err(anyhow::anyhow!(
+        "Error could not find the user and therefore could not get artist cause error occuredd"
+    ))?
 }
 
 #[command]
@@ -865,5 +871,7 @@ pub async fn artist_albums(
         return home;
     };
 
-    Err(anyhow::anyhow!("Error could not find the user and therefore could not get artist cause error occuredd"))?
+    Err(anyhow::anyhow!(
+        "Error could not find the user and therefore could not get artist cause error occuredd"
+    ))?
 }
