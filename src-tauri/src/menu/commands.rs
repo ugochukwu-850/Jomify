@@ -309,11 +309,10 @@ pub async fn process_queue(
                             .expect("Failed to lock")
                             .remove(&track.id);
                     }
-                    eprintln!(
-                        "Successfully processed this song {} saved at {:?}",
-                        track.name,
-                        audio_path.to_str()
-                    );
+                    let _ = Notification::new(&window.config().tauri.bundle.identifier)
+                        .title("S201: Download Success")
+                        .body(format!("Successfully downloade and processed {}", track.name))
+                        .show();
                 } else {
                     // emit message processing with ffmpeg did not go so well
                     let _ = Notification::new(&window.config().tauri.bundle.identifier)
