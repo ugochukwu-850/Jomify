@@ -169,3 +169,21 @@ export interface QueueMenuContext {
   data: RightSideMenu,
   setData: React.Dispatch<React.SetStateAction<RightSideMenu>>
 }
+
+export interface SearchResult {
+  tracks: SearchResultTracks,
+  albums: SearchResultAlbums,
+  artists: SearchResultArtists
+}
+
+interface SearchResultAlbums {
+  items: Album[]
+}
+
+interface SearchResultArtists {
+  items: ArtistDetail[]
+}
+
+interface SearchResultTracks {
+  items: Track[]
+}

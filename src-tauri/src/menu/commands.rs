@@ -320,8 +320,8 @@ pub async fn process_queue(
                     let _ = Notification::new(&window.config().tauri.bundle.identifier)
                         .title("S201: Download Success")
                         .body(format!(
-                            "Successfully downloade and processed {}",
-                            track.name
+                            "Successfully downloaded and processed {} ",
+                            track.search_query()
                         ))
                         .show();
                 } else {
@@ -554,7 +554,7 @@ pub fn play_queue(
                 "sink-playing-status",
                 json!({"playing": !sink.is_paused()}).to_string(),
             );
-            'recurse_get_file: for x in 0..180 {
+            'recurse_get_file: for x in 0..20 {
                 // if the queue has changed or the file is found break out of loop
                 if queue.read().expect("Head failed to wait").head.unwrap() != before_wait_head
                     || file.is_some()
@@ -568,7 +568,7 @@ pub fn play_queue(
                     // if not file just continue
                     continue 'recurse_get_file;
                 };
-                thread::sleep(Duration::from_secs(1));
+                thread::sleep(Duration::from_secs(5));
                 println!("Attempting find retry: {}", x);
             }
 
@@ -881,6 +881,23 @@ pub async fn artist_albums(
     };
     if let Some(user) = user {
         let home = user.get_artist_albums(id, db).await;
+        return home;
+    };
+
+    Err(anyhow::anyhow!(
+        "Error could not find the user and therefore could not get artist cause error occuredd"
+    ))?
+}
+
+#[command]
+pub async fn search_command(q: String, window: Window, db: tauri::State<'_, sled::Db>) -> Result<super::gear_structures::SearchResult, MyError> {
+    let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
+    let user = match window.state::<AppState>().user.lock() {
+        Ok(e) => e.clone(),
+        Err(_) => return var_name,
+    };
+    if let Some(user) = user {
+        let home = user.search(q, db).await;
         return home;
     };
 

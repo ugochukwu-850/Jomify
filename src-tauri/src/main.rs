@@ -15,7 +15,10 @@ use menu::{
 use rodio::{Decoder, OutputStream, Sink};
 use serde::{Deserialize, Serialize};
 use sled::Db;
-use tauri::{api::{notification::Notification, path::app_data_dir}, Manager, WindowEvent};
+use tauri::{
+    api::{notification::Notification, path::app_data_dir},
+    Manager, WindowEvent,
+};
 
 pub mod menu;
 use std::sync::{Arc, Mutex};
@@ -151,12 +154,11 @@ fn main() {
             let cursor_queue = app_queue.clone();
             let data_dir = app_dir.clone();
             let play_main_window_handle = main_window.clone();
-            let r_config = app.config().clone();
             tauri::async_runtime::spawn(async move {
                 eprintln!("I have recieved the play queue request");
 
                 let _ = play_queue(cursor_queue, data_dir, play_main_window_handle);
-                 });
+            });
 
             Ok(())
         })
@@ -174,7 +176,8 @@ fn main() {
             menu::commands::artist_albums,
             menu::commands::play_next,
             menu::commands::get_head,
-            menu::commands::get_queue
+            menu::commands::get_queue,
+            menu::commands::search_command
         ])
         .on_window_event(|event| {
             // create a handler closure for default exit and save protocol

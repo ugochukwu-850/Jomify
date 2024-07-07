@@ -12,7 +12,7 @@ use super::{
     auth_structures::User,
     errors::MyError,
     gear_structures::{
-        AlbumItem, Albums, Artist, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse, PlaylistItem, Playlists, SimplifiedArtist, Track
+        AlbumItem, Albums, Artist, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse, PlaylistItem, Playlists, SearchResult, SimplifiedArtist, Track
     },
 };
 
@@ -191,6 +191,40 @@ impl User {
     pub async fn home(&self, db: tauri::State<'_, sled::Db>) -> Result<HomeResponse, MyError> {
         HomeResponse::new(self.get_auth_creds(db).await?.access_token).await
     }
+
+    pub async fn search(&self, q: String, db: tauri::State<'_, sled::Db>) -> Result<SearchResult, MyError> {
+        let access_token = self.get_auth_creds(db).await?.access_token;
+        let client = Client::new();
+        let queries = [("offset", "0"), ("limit", "50"), ("q", &q), ("type", "album,artist,track")]; 
+
+        match client
+        .get(format!(
+            "https://api.spotify.com/v1/search/"
+        ))
+        .query(&queries)
+        .bearer_auth(access_token)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            let status = response.status().is_success();
+            let text = &response.text().await?;
+            if status {
+                // parse the text to featured playlist
+                let items: SearchResult = serde_json::from_str(text)?;
+                return Ok(items);
+            }
+
+            Err(MyError::Custom(text.to_owned()))
+        }
+        Err(e) => Err(MyError::Custom(format!(
+            "Error from reqesting the tracks for albums: {}",
+            e.to_string()
+        ))),
+    }
+
+    }
+    
 
     pub async fn get_artist(&self, id: String, db: tauri::State<'_, sled::Db>) -> Result<Artist, MyError> {
         let access_token = self.get_auth_creds(db).await?.access_token;

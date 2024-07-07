@@ -315,12 +315,11 @@ const PlayerActions = () => {
         </IconButton>
         <IconButton
           onClick={() => {
-            if (queue_tab_visible) {
               // update the value else return : We are sure it is always some
               console.log("Toggled queue showing");
               setQueueVisible(!queue_tab_visible);
               console.log(queue_tab_visible);
-            }
+            
           }}
         >
           <LyricsOutlined sx={{ fontSize: "1.2rem" }} />

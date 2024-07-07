@@ -193,13 +193,13 @@ const ObjectDisplayView: FC<ObjectDisplayViewProps> = ({ header, tracks }) => {
     if (total_items && totalDownloaded == total_items) {
       setDownloadComplete(true);
     }
-  }, [totalDownloaded])
+  }, [totalDownloaded]);
 
   useEffect(() => {
     if (tracks) {
       setTotalItems(tracks.length);
     }
-  }, [tracks])
+  }, [tracks]);
 
   return (
     <Box>
@@ -249,6 +249,7 @@ const ObjectDisplayView: FC<ObjectDisplayViewProps> = ({ header, tracks }) => {
                 console.log(e.name);
                 return (
                   <Link
+                    sx={{ margin: "0 2px" }}
                     onClick={async (event) => {
                       event.preventDefault();
                       event.stopPropagation();
@@ -360,7 +361,10 @@ const ObjectDisplayView: FC<ObjectDisplayViewProps> = ({ header, tracks }) => {
                 <DownloadDoneRounded sx={{ fontSize: "12px" }} />
               </IconButton>
             ) : (
-              <Typography variant="body1" sx={{ fontSize: "12px", margin: "auto 2px"}}>
+              <Typography
+                variant="body1"
+                sx={{ fontSize: "12px", margin: "auto 2px" }}
+              >
                 {totalDownloaded}/{total_items}
               </Typography>
             )}
@@ -494,6 +498,7 @@ const ArtistDetailDisplayView: FC<ArtistDisplayViewProps> = ({
         columns={18}
         justifyContent={"space-evenly"}
         gap={".5rem"}
+        rowGap={"1rem"}
         sx={{ margin: "24px 6px" }}
       >
         {albums?.map(
@@ -519,7 +524,7 @@ const ArtistDetailDisplayView: FC<ArtistDisplayViewProps> = ({
   );
 };
 
-const AlbumComponent: FC<Album> = (album) => {
+export const AlbumComponent: FC<Album> = (album) => {
   let nav_context = useContext(JomoNavigationContext);
   if (nav_context) {
     nav_context;
@@ -544,10 +549,13 @@ const AlbumComponent: FC<Album> = (album) => {
         width: "100%",
         height: "100%",
         minHeight: "250px",
+        padding: "4px",
         "&: hover": {
           background: "rgba(122, 125, 125, .1)",
-          borderRadius: "6px",
+          borderRadius: "12px",
           cursor: "pointer",
+          transition: "ease-in-out .2s",
+          "& .MuiCardMedia-root" : {borderRadius: "12px"}
         },
       }}
       onClick={async () => {
@@ -568,10 +576,10 @@ const AlbumComponent: FC<Album> = (album) => {
           <PlayCircleFilledOutlined sx={{ fontSize: "48px" }} />
         </IconButton>
       </CardMedia>
-      <Box>
+      <Box sx={{ padding: "4px" }}>
         <Typography
           variant="h6"
-          sx={{ fontWeight: "700", color: colors.grey[500] }}
+          sx={{ fontWeight: "700", fontSize: "18px", color: colors.grey[500] }}
         >
           {album.name}
         </Typography>
@@ -657,7 +665,7 @@ const TrackListItem: FC<TVC> = ({
           );
         }}
       >
-        {<PlayArrow sx={{color: downloaded ? "green" : "white"}}/>}
+        {<PlayArrow sx={{ color: downloaded ? "green" : "white" }} />}
       </TableCell>
       <TableCell
         sx={{
@@ -679,7 +687,10 @@ const TrackListItem: FC<TVC> = ({
           />
         </Card>
         <Box>
-          <Typography>{downloaded? <DoneOutlined sx={{fontSize: "12px"}}/> : ""}{track.name}</Typography>
+          <Typography>
+            {downloaded ? <DoneOutlined sx={{ fontSize: "12px" }} /> : ""}
+            {track.name}
+          </Typography>
           <Typography variant="body1">
             {track.artists.map((e, i) => {
               return (

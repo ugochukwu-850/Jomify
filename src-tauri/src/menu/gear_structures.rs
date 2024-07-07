@@ -193,7 +193,7 @@ pub struct Track {
     pub object_type: String,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct AlbumTrackDetail {
     pub artists: Vec<SimplifiedArtist>,
     pub name: String,
@@ -205,14 +205,35 @@ pub struct AlbumTrackDetail {
     pub object_type: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct AlbumTrackItemResponse {
     pub items: Vec<AlbumTrackDetail>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TrackItemsDetails {
     pub items: Vec<AlbumTrackDetail>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SearchResult {
+    pub tracks: SearchResultTracks,
+    pub artists: SearchResultArtists,
+    pub albums: SearchResultAlbums
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SearchResultAlbums {
+    pub items: Vec<AlbumItem> 
+}
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SearchResultArtists {
+    pub items: Vec<Artist> 
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SearchResultTracks {
+    pub items: Vec<Track> 
 }
 
 impl AlbumTrackItemResponse {
