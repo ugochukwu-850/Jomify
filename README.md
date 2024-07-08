@@ -1,7 +1,7 @@
 
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
-![Version](https://img.shields.io/github/v/release/ugochukwu-850/Jomify)
+![Version](https://img.shields.io/github/v/release/ugochukwu-850/Jomify?include_prereleases)
 ![Downloads](https://img.shields.io/github/downloads/ugochukwu-850/Jomify/total)
 
 
