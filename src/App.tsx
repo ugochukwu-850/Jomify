@@ -13,9 +13,41 @@ import Home from "./components/Home";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  let [data, setData] = useState<null | string>(null);
 
   useEffect(() => {
-    console.log("Running Effect in app component");
+    async function handleCallback() {
+      try {
+        // invoke the api to handle redirect
+        let code: string | null = new URLSearchParams(location.search).get(
+          "code"
+        );
+        let state: string | null = new URLSearchParams(location.search).get(
+          "state"
+        );
+
+        if (!state || !code) {
+          throw new Error("State or code was not found");
+        }
+
+        let data: string = await invoke("exchange_auth_code", {
+          state: state,
+          code: code,
+        });
+
+        setData(JSON.stringify(data));
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    console.log(data);
+    handleCallback();
+
+    return () => {};
+  }, []);
+
+  useEffect(() => {
 
     let run_auth_status = async () => {
       try {
@@ -23,25 +55,23 @@ function App() {
         console.log("Login statys", loginStatus);
         setLoggedIn(loginStatus);
       } catch (error) {
-        setLoggedIn(false);
         console.log(error);
       }
     };
 
     run_auth_status();
-  }, []);
+  }, [data]);
+
   console.log(loggedIn);
-  if (loggedIn === null) {
-    return <>Loading</>
-  }
-  else if (loggedIn === false) {
-    return <AuthPage />;
-  } else {
+  
+  if (data || loggedIn) {
     return (
       <StyledEngineProvider injectFirst>
-        <Home/>
+        <Home />
       </StyledEngineProvider>
     );
+  } else {
+    return <AuthPage />;
   }
 }
 

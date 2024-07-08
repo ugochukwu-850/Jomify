@@ -37,6 +37,9 @@ const AuthPage = () => {
   const { customTheme, WhiteOutlinedTextField } = customThemes;
   var [clientId, setClientId] = useState<string | undefined>(undefined);
 
+  // check if this page has the code and state variables then try to run callback
+  
+
   return (
     <ThemeProvider theme={customTheme}>
       <Box component="div" className={`${styles.dark} ${styles.container} `}>
