@@ -1,6 +1,7 @@
 use std::{
     fmt,
     fs::File,
+    net::TcpListener,
     path::PathBuf,
     str::FromStr,
     sync::{Arc, Mutex, RwLock},
@@ -73,7 +74,10 @@ pub fn wait_read_file(filepath: &PathBuf) -> Result<File, MyError> {
 
 use std::process::Stdio;
 use tauri::{
-    api::process::{Command, CommandEvent},
+    api::{
+        process::{Command, CommandEvent},
+        shell::open,
+    },
     command, Manager,
 };
 
@@ -169,4 +173,60 @@ pub mod arc_rwlock_serde {
     {
         T::deserialize(deserializer).map(|data| Arc::new(RwLock::new(data)))
     }
+}
+
+use tauri::async_runtime::channel;
+
+pub async fn retrieve_code(
+    window: tauri::Window,
+    auth_url: String,
+) -> Result<(String, String), MyError> {
+    // Start the TCP server and get the receiver for the OAuth2 code
+    // let (sender, mut receiver) = channel(100);
+    open(&window.shell_scope(), &auth_url, None).map_err(|e| MyError::Custom(e.to_string()))?;
+
+    let listener = TcpListener::bind("127.0.0.1:1420").expect("Failed to bind port 1420");
+    for stream in listener.incoming() {
+        let stream = stream.expect("Failed to accept connection");
+        let mut buffer = [0; 1024];
+        stream
+            .peek(&mut buffer)
+            .expect("Failed to read from stream");
+
+        // Simple HTTP parser to extract query parameters
+        let request = String::from_utf8_lossy(&buffer);
+        eprintln!("Incomming stream : {}", request);
+
+        if request.starts_with("GET /") {
+            let parts: Vec<&str> = request.split_whitespace().collect();
+            eprintln!("Patys stream : {:?}", parts);
+
+            if parts.len() > 1 {
+                let url = parts[1];
+                let query: Vec<&str> = url.split('?').collect();
+                if query.len() > 1 {
+                    let params: Vec<&str> = query[1].split('&').collect();
+                    let mut state = String::new();
+                    let mut code = String::new();
+                    for param in params {
+                        let key_value: Vec<&str> = param.split('=').collect();
+                        if key_value.len() == 2 {
+                            match key_value[0] {
+                                "state" => state = key_value[1].to_string(),
+                                "code" => code = key_value[1].to_string(),
+                                _ => {}
+                            }
+                        }
+                    }
+                    println!("Gotten code and state continue");
+                    // let _ = sender.send((state, code)).await;
+                    return Ok((state, code));
+                }
+            }
+        }
+    }
+    // });
+
+    Err(MyError::Custom("()".to_string()))
+
 }

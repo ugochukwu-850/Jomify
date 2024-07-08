@@ -15,7 +15,7 @@ use super::auth_structures::{Settings, SupportedApps, User};
 use super::core_structures::HomeResponse;
 use super::errors::MyError;
 use super::gear_structures::{AlbumItem, Artist, FeaturedPlaylistRequest, Track, Tracks};
-use super::utils::{get_data_from_db, run_ffmpeg_command};
+use super::utils::{get_data_from_db, retrieve_code, run_ffmpeg_command};
 
 use anyhow::anyhow;
 use oauth2::reqwest::async_http_client;
@@ -31,11 +31,14 @@ use tauri::{command, window, Manager, Window};
 
 // Define the store state to hold the store
 #[command]
-pub async fn generate_auth_url(
+pub async fn sign_in(
     client_id: Option<String>,
     app_name: String,
+    window: Window,
     db: tauri::State<'_, sled::Db>,
-) -> Result<Url, MyError> {
+    app_state: tauri::State<'_, AppState>,
+) -> Result<String, MyError> {
+    println!("Gotten request to sign in");
     let app = SupportedApps::from_name(app_name)?;
 
     let client = app.generate_basic_oauth_client(client_id)?;
@@ -53,51 +56,68 @@ pub async fn generate_auth_url(
         .url();
 
     // save the csrf token in state and also save the pcke verifier in state
-    let _ = db.insert("verifier", serde_json::to_vec(&pkce_verifier.secret())?)?;
-    let _ = db.insert("csrf_token", serde_json::to_vec(&csrf_token.secret())?)?;
+    // let _ = db.insert("verifier", serde_json::to_vec(&pkce_verifier.secret())?)?;
+    // let _ = db.insert("csrf_token", serde_json::to_vec(&csrf_token.secret())?)?;
 
-    // save the client in state
-    let _ = db.insert(
-        "auth_client_id",
-        serde_json::to_vec(&client.client_id().to_string())?,
-    )?;
-    let _ = db.insert("app_name", serde_json::to_vec(&app.name())?)?;
+    // // save the client in state
+    // let _ = db.insert(
+    //     "auth_client_id",
+    //     serde_json::to_vec(&client.client_id().to_string())?,
+    // )?;
+    // let _ = db.insert("app_name", serde_json::to_vec(&app.name())?)?;
 
-    Ok(auth_url)
+    // start the listner
+    println!("Generated authorization url and started waiting for reciever");
+    let (state, code) = retrieve_code(window.clone(), auth_url.to_string()).await?;
+    println!("Generated the code and state");
+    // exchange the code and state
+    let user = exchange_auth_code(
+        state,
+        code,
+        pkce_verifier,
+        client.client_id().to_string(),
+        app,
+        csrf_token.secret().to_string(),
+        db,
+        app_state,
+    )
+    .await?;
+
+    // before returning emit message loggedIn
+    let _ = window.emit("authentication", "loggedIn");
+    println!("Emitted logged In message and is returning");
+    Ok(user.profile.merchant_id)
 }
 
-#[command]
 /// Async function command to exchange code for token for any client
 pub async fn exchange_auth_code(
-    state: Option<String>,
+    state: String,
     code: String,
+    verifier: PkceCodeVerifier,
+    client_id: String,
+    app: SupportedApps,
+    csrf: String,
     db: tauri::State<'_, sled::Db>,
     app_state: tauri::State<'_, AppState>,
 ) -> Result<User, MyError> {
     // Async function actually run the exchange - This function could later become a closure
-    let db_state = get_data_from_db::<String>(&db, "csrf_token")?;
-    let verifier = get_data_from_db::<String>(&db, "verifier")?;
-    let client_id = Some(get_data_from_db::<String>(&db, "auth_client_id")?);
-    let app_name = get_data_from_db::<String>(&db, "app_name")?;
-    println!(
-        "Parsed all the key information state -> {} verifier -> {} client id -> {} app_name -> {}",
-        db_state,
-        verifier,
-        client_id.clone().unwrap(),
-        app_name
-    );
-    if let Some(e) = state {
-        if e != db_state {
-            return Err(anyhow::anyhow!("State does not match"))?;
-        }
-    }
-    let app = SupportedApps::from_name(app_name)?;
 
-    let client = app.generate_basic_oauth_client(client_id.to_owned())?;
+    println!(
+        "Parsed all the key information state -> {}  client id -> {} app_name -> {}",
+        csrf, client_id, app.name()
+    );
+
+    if state != csrf {
+        return Err(anyhow::anyhow!("State does not match"))?;
+    }
+
+    // let app = SupportedApps::from_name(app_name)?;
+
+    let client = app.generate_basic_oauth_client(Some(client_id.to_owned()))?;
 
     let token_result = client
         .exchange_code(AuthorizationCode::new(code))
-        .set_pkce_verifier(PkceCodeVerifier::new(verifier))
+        .set_pkce_verifier(verifier)
         .request_async(async_http_client)
         .await;
     match token_result {
@@ -106,9 +126,7 @@ pub async fn exchange_auth_code(
             eprintln!("Got token | Expires in => {:?}", token.expires_at);
             let _ = db.insert(app.app_auth_key(), &*serde_json::to_string(&token)?)?;
             let profile = app.profile(&token.access_token).await?;
-            let meta = MetaInfo {
-                client_id: client_id.unwrap_or_else(|| app.get_default_client_id()),
-            };
+            let meta = MetaInfo { client_id };
             let user = User {
                 app,
                 settings: Settings::new_default(),

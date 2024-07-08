@@ -22,12 +22,11 @@ async function InitiateAuthenticationFlow(
 ): Promise<void | URL> {
   // call the function for the client url generation
   try {
-    const url: string = await invoke("generate_auth_url", {
+    const url: string = await invoke("sign_in", {
       appName: "spotify",
       client_id: clientId,
     });
-
-    location.href = url;
+     console.log("Emitted the sign_in command");
   } catch (error) {
     console.log(error);
   }
@@ -37,8 +36,6 @@ const AuthPage = () => {
   const { customTheme, WhiteOutlinedTextField } = customThemes;
   var [clientId, setClientId] = useState<string | undefined>(undefined);
 
-  // check if this page has the code and state variables then try to run callback
-  
 
   return (
     <ThemeProvider theme={customTheme}>

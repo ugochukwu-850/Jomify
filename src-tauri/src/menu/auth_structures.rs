@@ -192,7 +192,7 @@ impl SupportedApps {
             Self::Spotify => SupportedAppsEnpoints {
                 authourization_url: "https://accounts.spotify.com/authorize".to_string(),
                 token_url: "https://accounts.spotify.com/api/token".to_string(),
-                redirect_url: "http://localhost:1420".to_string(),
+                redirect_url: "http://127.0.0.1:1420/".to_string(),
                 client_id: client_id.unwrap_or_else(|| self.get_default_client_id()),
             },
         }

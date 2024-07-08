@@ -10,66 +10,60 @@ import { StyledEngineProvider } from "@mui/material";
 
 import { invoke } from "@tauri-apps/api/tauri";
 import Home from "./components/Home";
+import { appWindow } from "@tauri-apps/api/window";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
-  let [data, setData] = useState<null | string>(null);
 
   useEffect(() => {
-    async function handleCallback() {
-      try {
-        // invoke the api to handle redirect
-        let code: string | null = new URLSearchParams(location.search).get(
-          "code"
-        );
-        let state: string | null = new URLSearchParams(location.search).get(
-          "state"
-        );
-
-        if (!state || !code) {
-          throw new Error("State or code was not found");
-        }
-
-        let data: string = await invoke("exchange_auth_code", {
-          state: state,
-          code: code,
-        });
-
-        setData(JSON.stringify(data));
-      } catch (error) {
-        console.log(error);
-      }
-    }
-
-    console.log(data);
-    handleCallback();
-
-    return () => {};
-  }, []);
-
-  useEffect(() => {
-
     let run_auth_status = async () => {
       try {
         let loginStatus: boolean = await invoke("is_authenticated");
         console.log("Login statys", loginStatus);
         setLoggedIn(loginStatus);
       } catch (error) {
+        setLoggedIn(false);
         console.log(error);
       }
     };
 
     run_auth_status();
-  }, [data]);
+  }, []);
+
+  useEffect(() => {
+    // use an effect to listen if the user has been authenticated by a backend process
+    // if the event is called then set loggedin to true
+    const StateLessAuthenticationCheck = async () => {
+      // try and wait for the response
+      try {
+        console.log("Waiting for any user log update");
+
+        let unlisten = await appWindow.listen<string>("authentication", (event) => {
+          console.log(event.payload);
+          if (event.payload == "loggedIn") {
+            setLoggedIn(true);
+          } else if (event.payload == "loggedOut") {
+            setLoggedIn(false);
+          }
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    
+    StateLessAuthenticationCheck();
+  }, []);
 
   console.log(loggedIn);
-  
-  if (data || loggedIn) {
+
+  if (loggedIn) {
     return (
       <StyledEngineProvider injectFirst>
         <Home />
       </StyledEngineProvider>
     );
+  } else if (loggedIn == null) {
+    return <></>;
   } else {
     return <AuthPage />;
   }

@@ -163,9 +163,8 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            menu::commands::generate_auth_url,
+            menu::commands::sign_in,
             menu::commands::get_tracks,
-            menu::commands::exchange_auth_code,
             menu::commands::is_authenticated,
             menu::commands::home,
             menu::commands::add_to_queue,
