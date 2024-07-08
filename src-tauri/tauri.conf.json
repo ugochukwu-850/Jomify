@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "Jomo App",
-    "version": "0.0.0"
+    "version": "0.1.0"
   },
   "tauri": {
     "allowlist": {
@@ -17,13 +17,16 @@
         "all": true
       },
       "shell": {
-        "all": false,
-        "open": true
+        "all": true,
+        "execute": true,
+        "sidecar": true,
+        "open": true,
+        "scope": [{ "name": "bin/ffmpeg", "sidecar": true, "args": true }]
       },
       "http": {
         "all": true,
         "request": true,
-        "scope": ["https://*"]
+        "scope": ["https://*", "http://*"]
       },
       "path": {
         "all": true
@@ -44,12 +47,11 @@
       "active": true,
       "targets": "all",
       "identifier": "com.tauri.prod",
+      "category": "Music",
+      "publisher": "Ugochukwu Chizaram",
+      "externalBin": ["bin/ffmpeg"],
       "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
+        "icons/jomo.png"
       ]
     }
   }

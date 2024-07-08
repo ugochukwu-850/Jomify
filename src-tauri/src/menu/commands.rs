@@ -15,7 +15,7 @@ use super::auth_structures::{Settings, SupportedApps, User};
 use super::core_structures::HomeResponse;
 use super::errors::MyError;
 use super::gear_structures::{AlbumItem, Artist, FeaturedPlaylistRequest, Track, Tracks};
-use super::utils::get_data_from_db;
+use super::utils::{get_data_from_db, run_ffmpeg_command};
 
 use anyhow::anyhow;
 use oauth2::reqwest::async_http_client;
@@ -299,50 +299,23 @@ pub async fn process_queue(
                     continue;
                 }
                 _ = std::fs::write(&video_path, total_bytes).expect("Failed to save video");
-                let status = Command::new("ffmpeg")
-                    .arg("-i")
-                    .arg(&video_path)
-                    .arg("-vn") // Skip the video part
-                    .arg("-acodec")
-                    .arg("libmp3lame") // Encode audio to MP3 format
-                    .arg(&audio_path)
-                    .status()
-                    .expect("Failed to execute ffmpeg command");
-                if status.success() {
-                    // set the queue items audio and video source
-                    let _ = window.emit(&format!("downloaded-{}", track.id), "downloaded");
-                    {
-                        processes_queue
-                            .write()
-                            .expect("Failed to lock")
-                            .remove(&track.id);
-                    }
-                    let _ = Notification::new(&window.config().tauri.bundle.identifier)
-                        .title("S201: Download Success")
-                        .body(format!(
-                            "Successfully downloaded and processed {} ",
-                            track.search_query()
-                        ))
-                        .show();
-                } else {
-                    // emit message processing with ffmpeg did not go so well
-                    let _ = Notification::new(&window.config().tauri.bundle.identifier)
-                        .title("E601: Audio Preprocessing Error")
-                        .body(format!(
-                            "FFMPEG RAN INTO AN ERROR WHILE PROCESSING {}",
-                            track.name
-                        ))
-                        .show();
-                    continue;
-                }
+                match run_ffmpeg_command(
+                    window.clone(),
+                    &track.id,
+                    &track.name,
+                    &track.search_query(),
+                    &video_path,
+                    &audio_path,
+                )
+                .await
+                {
+                    Ok(_) => {}
+                    Err(_) => continue,
+                };
             }
-            Err(_) => {
-                // emit error
-                continue;
-            }
-        };
+            Err(_) => {continue},
+        }
     }
-
     Ok(())
 }
 
@@ -562,10 +535,11 @@ pub fn play_queue(
                     break 'recurse_get_file;
                 }
                 // try to get the file
-                file = if let Ok(e) = wait_read_file(&audio_file_path, Some(1), Some(1), None) {
+                file = if let Ok(e) = wait_read_file(&audio_file_path) {
                     Some(e)
                 } else {
                     // if not file just continue
+                    thread::sleep(Duration::from_secs(3));
                     continue 'recurse_get_file;
                 };
                 thread::sleep(Duration::from_secs(5));
@@ -890,7 +864,11 @@ pub async fn artist_albums(
 }
 
 #[command]
-pub async fn search_command(q: String, window: Window, db: tauri::State<'_, sled::Db>) -> Result<super::gear_structures::SearchResult, MyError> {
+pub async fn search_command(
+    q: String,
+    window: Window,
+    db: tauri::State<'_, sled::Db>,
+) -> Result<super::gear_structures::SearchResult, MyError> {
     let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
     let user = match window.state::<AppState>().user.lock() {
         Ok(e) => e.clone(),
