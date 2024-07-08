@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import styles from "../index.module.scss";
 import {
+  List,
   Lyrics,
   LyricsOutlined,
   Museum,
@@ -41,7 +42,6 @@ import {
   VolumeDownOutlined,
 } from "@mui/icons-material";
 import { JomoSlider } from "../theme";
-import { invoke } from "@tauri-apps/api/tauri";
 import { FC, useContext, useEffect, useState } from "react";
 import { appWindow } from "@tauri-apps/api/window";
 import {
@@ -52,6 +52,7 @@ import {
 } from "../../../types";
 import nextPage, { formatDuration, generate_artist_page } from "../../../util";
 import { JomoNavigationContext } from "..";
+import { event, invoke } from "@tauri-apps/api";
 interface TrackFeed {
   track: Track | undefined;
 }
@@ -116,7 +117,8 @@ const PlayerControls = (props: { duration: number | undefined }) => {
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [repeat, setRepeat] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [shuffle, setShuffle] = useState(false);
 
   useEffect(() => {
     let update_track = async () => {
@@ -134,6 +136,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
             console.log("Printing the event response", event.payload);
           }
         );
+        unlisten();
       } catch (error) {
         console.log(error);
       }
@@ -146,17 +149,32 @@ const PlayerControls = (props: { duration: number | undefined }) => {
 
           console.log("Printing the event response", event.payload);
         });
+        unlisten();
       } catch (error) {
         console.log(error);
       }
     };
+    let update_position = async () => {
+      try {
+        console.log("Getting current position");
+        let unlisten = appWindow.listen<string>("current-position", (event) => {
+          console.log("Current posiiton as from backend => ", event.payload);
+          setPosition(parseInt(event.payload))
+        });
+        await appWindow.emit("set-position");
+      } catch (error) {
+        console.log(error);
+      }
+    }
     update_track();
     update_loading();
+    update_position();
   }, []);
+
+  
   useEffect(() => {
     let timeoutId: number;
-
-    const tick = () => {
+    const tick = async () => {
       if (
         props.duration &&
         playing &&
@@ -164,6 +182,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
         !loading
       ) {
         setPosition((prevPosition) => prevPosition + 1);
+        await appWindow.emit("set-position", position);
       } else if (
         props.duration &&
         position >= Math.floor(props.duration / 1000)
@@ -174,7 +193,6 @@ const PlayerControls = (props: { duration: number | undefined }) => {
     };
 
     timeoutId = setTimeout(tick, 1000);
-
     // Cleanup function to clear timeout on component unmount or dependency change
     return () => {
       if (timeoutId) {
@@ -182,6 +200,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
       }
     };
   }, [props.duration, position, playing, loading]);
+
   useEffect(() => {
     let update_play_status = async () => {
       try {
@@ -214,11 +233,27 @@ const PlayerControls = (props: { duration: number | undefined }) => {
     };
     update_play_status();
   }, []);
+
   return (
     <Stack>
       <Box sx={{ height: "80%", margin: "auto" }}>
-        <IconButton>
-          <Shuffle />
+        <IconButton
+          onClick={async () => {
+            // invoke the tuggle suffle at backend
+            try {
+              await appWindow.emit("toggle-shuffle");
+              // toggle shuffle and send the backend
+              setShuffle((prev) => !prev);
+            } catch (error) {
+              console.log(error);
+            }
+          }}
+        >
+          {shuffle ? (
+            <List />
+          ) : (
+            <Shuffle sx={{ color: shuffle ? "green" : "white" }} />
+          )}
         </IconButton>
         <IconButton
           onClick={async () => {
@@ -300,7 +335,8 @@ const PlayerActions = () => {
   } else {
     return <></>;
   }
-  let { nav, setNav, queue_tab_visible, setQueueVisible} = nav_context;  return (
+  let { nav, setNav, queue_tab_visible, setQueueVisible } = nav_context;
+  return (
     <Box
       sx={{
         display: "flex",
@@ -315,11 +351,10 @@ const PlayerActions = () => {
         </IconButton>
         <IconButton
           onClick={() => {
-              // update the value else return : We are sure it is always some
-              console.log("Toggled queue showing");
-              setQueueVisible(!queue_tab_visible);
-              console.log(queue_tab_visible);
-            
+            // update the value else return : We are sure it is always some
+            console.log("Toggled queue showing");
+            setQueueVisible(!queue_tab_visible);
+            console.log(queue_tab_visible);
           }}
         >
           <LyricsOutlined sx={{ fontSize: "1.2rem" }} />
@@ -391,7 +426,6 @@ const MusicPlayer = () => {
         let track = await invoke<Track>("get_head");
         setTrack(track);
         console.log(track);
-        
       } catch (error) {
         console.log(error);
       }

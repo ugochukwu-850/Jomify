@@ -180,10 +180,10 @@ interface SearchResultAlbums {
   items: Album[]
 }
 
-interface SearchResultArtists {
+export interface SearchResultArtists {
   items: ArtistDetail[]
 }
 
-interface SearchResultTracks {
+export interface SearchResultTracks {
   items: Track[]
 }

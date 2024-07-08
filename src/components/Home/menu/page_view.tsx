@@ -393,46 +393,67 @@ const ObjectDisplayView: FC<ObjectDisplayViewProps> = ({ header, tracks }) => {
             margin: "0 auto",
           }}
         >
-          <Table stickyHeader aria-label="sticky table">
-            <TableHead>
-              <TableRow>
-                <TableCell key="#" align="left" style={{ minWidth: 5 }}>
-                  <Typography>#</Typography>
-                </TableCell>
-                <TableCell key="1header" align="left" style={{ minWidth: 100 }}>
-                  <Typography>Title</Typography>
-                </TableCell>
-                <TableCell key="2header" align="left" style={{ minWidth: 100 }}>
-                  <Typography>Album</Typography>
-                </TableCell>
-
-                <TableCell key="4header" align="left" style={{ minWidth: 100 }}>
-                  <TimelapseRounded />
-                </TableCell>
-
-                <TableCell
-                  key="3header"
-                  align="left"
-                  style={{ minWidth: 40 }}
-                ></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {tracks?.map((track, index) => {
-                return (
-                  <TrackListItem
-                    track={track}
-                    index={index}
-                    header={header}
-                    setDownloadedItem={setTotalDownloaded}
-                  />
-                );
-              })}
-            </TableBody>
-          </Table>
+          {/**Track list table view component */}
+          <TrackTableView
+            setDownloaded={setTotalDownloaded}
+            tracks={tracks}
+            header={header}
+          />
         </TableContainer>
       </Box>
     </Box>
+  );
+};
+
+interface TrackTableViewProps {
+  tracks?: Track[];
+  setDownloaded: React.Dispatch<React.SetStateAction<number>>;
+  header?: DefaultObjectsPreview;
+}
+
+export const TrackTableView: FC<TrackTableViewProps> = ({
+  setDownloaded,
+  tracks,
+  header,
+}) => {
+  return (
+    <Table stickyHeader aria-label="sticky table">
+      <TableHead>
+        <TableRow>
+          <TableCell key="#" align="left" style={{ minWidth: 5 }}>
+            <Typography>#</Typography>
+          </TableCell>
+          <TableCell key="1header" align="left" style={{ minWidth: 100 }}>
+            <Typography>Title</Typography>
+          </TableCell>
+          <TableCell key="2header" align="left" style={{ minWidth: 100 }}>
+            <Typography>Album</Typography>
+          </TableCell>
+
+          <TableCell key="4header" align="left" style={{ minWidth: 100 }}>
+            <TimelapseRounded />
+          </TableCell>
+
+          <TableCell
+            key="3header"
+            align="left"
+            style={{ minWidth: 40 }}
+          ></TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {tracks?.map((track, index) => {
+          return (
+            <TrackListItem
+              track={track}
+              index={index}
+              header={header}
+              setDownloadedItem={setDownloaded}
+            />
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 };
 
@@ -555,7 +576,7 @@ export const AlbumComponent: FC<Album> = (album) => {
           borderRadius: "12px",
           cursor: "pointer",
           transition: "ease-in-out .2s",
-          "& .MuiCardMedia-root" : {borderRadius: "12px"}
+          "& .MuiCardMedia-root": { borderRadius: "12px" },
         },
       }}
       onClick={async () => {
@@ -596,10 +617,10 @@ export const AlbumComponent: FC<Album> = (album) => {
 interface TVC {
   track: Track;
   index: number;
-  header: DefaultObjectsPreview;
+  header: DefaultObjectsPreview | undefined;
   setDownloadedItem: React.Dispatch<React.SetStateAction<number>>;
 }
-const TrackListItem: FC<TVC> = ({
+export const TrackListItem: FC<TVC> = ({
   index,
   track,
   header,
@@ -636,6 +657,7 @@ const TrackListItem: FC<TVC> = ({
   return (
     <TableRow
       sx={{
+        position: "static",
         "&:hover": { cursor: "pointer" },
         "& .MuiTableRow-root :hover": { background: "grey" },
       }}
@@ -648,15 +670,17 @@ const TrackListItem: FC<TVC> = ({
               {
                 ...track,
                 album: !track.album
-                  ? ({
-                      type: header.type,
-                      artists: header.artist,
-                      href: header.href,
-                      id: header.id,
-                      images: header.image,
-                      name: header.name,
-                      release_date: header.released_at,
-                    } as Album)
+                  ? header
+                    ? ({
+                        type: header.type,
+                        artists: header.artist,
+                        href: header.href,
+                        id: header.id,
+                        images: header.image,
+                        name: header.name,
+                        release_date: header.released_at,
+                      } as Album)
+                    : undefined
                   : track.album,
               } as Track,
             ],
@@ -682,7 +706,7 @@ const TrackListItem: FC<TVC> = ({
             component={"img"}
             sx={{ width: "48px", rowGap: ".5em" }}
             image={
-              track.album ? track.album.images[0].url : header.image[0].url
+              track.album ? track.album.images[0].url : header?.image[0].url
             }
           />
         </Card>
@@ -744,7 +768,7 @@ const TrackListItem: FC<TVC> = ({
             }
           }}
         >
-          {track.album ? track.album.name : header.name}
+          {track.album ? track.album.name : header?.name}
         </Typography>
       </TableCell>
 
@@ -762,6 +786,19 @@ const TrackListItem: FC<TVC> = ({
           id={track.id}
           popularity={track.popularity}
           type={track.type}
+          album={
+            track.album
+              ? track.album
+              : ({
+                  artists: header?.artist,
+                  id: header?.id,
+                  images: header?.image,
+                  href: header?.href,
+                  name: header?.name,
+                  release_date: header?.released_at,
+                  type: header?.type,
+                } as Album)
+          }
         />
       </TableCell>
     </TableRow>

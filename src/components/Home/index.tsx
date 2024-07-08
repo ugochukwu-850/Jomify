@@ -51,13 +51,23 @@ const JomoNavigationContext = createContext<
 const Home = () => {
   console.log("Running Home effect");
   let [homeData, setHomeData] = useState<HomeResponse | null>(null);
-
   let [nav, setNav] = useState({
     previous: null,
     next: null,
     data: null,
   } as JomoNavigation);
   let [queue_visible, setQueueVisible] = useState(true);
+  let [refresh, setRefresh] = useState(0);
+  
+  // document.addEventListener("keydown", function (event) {
+  //   if ((((event.ctrlKey || event.metaKey) && event.key === "r") || (event.key === "F5")) && !nav.data) {
+  //     event.preventDefault();
+  //     event.stopPropagation();
+  //     console.log("Refresh prevented (Ctrl+R or Cmd+R)");
+  //     setRefresh((prev) => prev + 1);
+  //   }
+    
+  // });
 
   useEffect(() => {
     let populate = async () => {
@@ -70,7 +80,7 @@ const Home = () => {
       }
     };
     populate();
-  }, []);
+  }, [refresh]);
 
   return (
     <ThemeProvider theme={homeTheme}>
@@ -298,14 +308,14 @@ const QueueComponent = () => {
                     <>
                       {head?.artists.map((e, _) => (
                         <Link
-                        onClick={async (event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          let artist_page = await generate_artist_page(e.id);
-                          if (artist_page) {
-                            nextPage(nav, setNav, artist_page);
-                          }
-                        }}
+                          onClick={async (event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            let artist_page = await generate_artist_page(e.id);
+                            if (artist_page) {
+                              nextPage(nav, setNav, artist_page);
+                            }
+                          }}
                           href={e.id}
                           sx={{
                             color: colors.grey[600],
@@ -376,14 +386,14 @@ const QueueComponent = () => {
                 }
                 secondary={track.artists.map((a, _) => (
                   <Link
-                  onClick={async (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    let artist_page = await generate_artist_page(a.id);
-                    if (artist_page) {
-                      nextPage(nav, setNav, artist_page);
-                    }
-                  }}
+                    onClick={async (event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      let artist_page = await generate_artist_page(a.id);
+                      if (artist_page) {
+                        nextPage(nav, setNav, artist_page);
+                      }
+                    }}
                     href={a.id}
                     sx={{
                       color: colors.grey[600],

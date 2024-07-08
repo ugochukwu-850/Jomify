@@ -32,7 +32,7 @@ const FeaturedPlaylist: FC<MajorProp> = ({ data, setNav, nav }) => {
       <Typography variant="h5" sx={{ fontWeight: "900" }}>
         Featured Playlists
       </Typography>
-      <Grid container columns={8}
+      <Grid container columns={12}
         sx={{
           justifyContent: "start",
         }}
@@ -40,7 +40,7 @@ const FeaturedPlaylist: FC<MajorProp> = ({ data, setNav, nav }) => {
         {data.map((datum, index) => (
           <Grid
             key={index}
-            xs = {8} sm={4} md={4} lg={2} xl={2}
+            xs = {12} sm={6} md={6} lg={6} xl={4}
             sx={{
               margin: "2px 0",
               "& :hover": { background: lighten("#242424", 0.05) },
@@ -168,8 +168,7 @@ const MainPlaylistCollage: FC<MajorProp> = ({ data, setNav, nav }) => {
                       e.name;
                     })
                     .join(", ") ||
-                  item.description ||
-                  "Music Playlist Information"
+                  item?.description
                 }
                 actionIcon={
                   <IconButton

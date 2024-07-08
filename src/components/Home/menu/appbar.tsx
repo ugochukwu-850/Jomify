@@ -10,25 +10,31 @@ import {
   AppBar,
   Box,
   Button,
+  CardMedia,
+  colors,
   Grid,
   IconButton,
   InputAdornment,
+  TableContainer,
   Typography,
 } from "@mui/material";
 import { JomoAppSearch } from "../theme";
 import styles from "../index.module.scss";
-import { FC, useEffect, useState } from "react";
+import { FC, useContext, useEffect, useState } from "react";
 import {
   JomoNavigation,
   DefaultObjectPage,
   Track,
   Album,
   SearchResult,
+  SearchResultTracks,
+  SearchResultArtists,
 } from "../../../types";
-import nextPage, { previousPage } from "../../../util";
+import nextPage, { generate_artist_page, previousPage } from "../../../util";
 import { Artist } from "@spotify/web-api-ts-sdk";
 import { invoke } from "@tauri-apps/api";
-import { AlbumComponent } from "./page_view";
+import { AlbumComponent, TrackTableView } from "./page_view";
+import { JomoNavigationContext } from "..";
 
 interface ModelProps {
   setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>;
@@ -219,12 +225,18 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
         </Box>
         <Box
           onClick={() => {
-            setResultViewOpen(false);
+            if (search_view != "tracks") {
+              setResultViewOpen(false);
+            }
           }}
           sx={{ marginTop: "24px" }}
         >
           {search_view == "tracks" ? (
-            <h1>Tracks</h1>
+            search_result ? (
+              <SearchTrackComponent items={search_result.tracks.items} />
+            ) : (
+              <></>
+            )
           ) : search_view == "album" ? (
             <Grid
               container
@@ -232,7 +244,7 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
               justifyContent={"space-evenly"}
               gap={".5rem"}
               rowGap={"1rem"}
-              sx={{ margin: "24px 6px", overflowY: "scroll", height: "600px"}}
+              sx={{ margin: "24px 6px", overflowY: "scroll", height: "600px" }}
             >
               {search_result?.albums.items.map((album, index) => (
                 <Grid item xs={8} md={4}>
@@ -248,8 +260,11 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
                 </Grid>
               ))}
             </Grid>
+          ) : search_result ? (
+            // for artists
+            <ArtistBulbView items={search_result.artists.items} />
           ) : (
-            <h1>Artist</h1>
+            <></>
           )}
         </Box>
       </Box>
@@ -257,4 +272,103 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
   );
 };
 
+const SearchTrackComponent: FC<SearchResultTracks> = ({ items }) => {
+  let [downloaded, setDownloaded] = useState(0);
+
+  return (
+    <TableContainer
+      sx={{
+        width: "100%",
+        maxHeight: "64vh",
+        margin: "0 auto",
+        position: "relative",
+      }}
+    >
+      <TrackTableView
+        setDownloaded={setDownloaded}
+        header={undefined}
+        tracks={items}
+      />
+    </TableContainer>
+  );
+};
+
+const ArtistBulbView: FC<SearchResultArtists> = ({ items }) => {
+  let nav_context = useContext(JomoNavigationContext);
+  if (nav_context) {
+    nav_context;
+  } else {
+    return <></>;
+  }
+  let { nav, setNav } = nav_context;
+
+  return (
+    <Grid
+      container
+      columns={18}
+      justifyContent={"space-evenly"}
+      gap={".5rem"}
+      rowGap={"1rem"}
+      sx={{ margin: "24px 6px", overflowY: "scroll", height: "600px" }}
+    >
+      {items.map((artist, index) => {
+        return (
+          <Grid item xs={8} md={4}>
+            <Box
+              sx={{
+                width: "100%",
+                height: "100%",
+                minHeight: "250px",
+                padding: "4px",
+                "&: hover": {
+                  background: "rgba(122, 125, 125, .1)",
+                  borderRadius: "12px",
+                  cursor: "pointer",
+                  transition: "ease-in-out .2s",
+                  "& .MuiCardMedia-root": { borderRadius: "12px" },
+                },
+              }}
+              onClick={async (event) => {
+                event.preventDefault();
+                console.log(artist.id);
+                let artist_page = await generate_artist_page(artist.id);
+                if (artist_page) {
+                  nextPage(nav, setNav, artist_page);
+                }
+              }}
+            >
+              <CardMedia
+                image={
+                  artist.images.length > 0
+                    ? artist.images[0].url
+                    : "https://upload.wikimedia.org/wikipedia/commons/7/7c/Profile_avatar_placeholder_large.png?20150327203541"
+                }
+                sx={{ minHeight: "200px", borderRadius: "6px" }}
+              ></CardMedia>
+              <Box sx={{ padding: "4px" }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: "700",
+                    fontSize: "18px",
+                    color: colors.grey[500],
+                  }}
+                >
+                  {artist.name}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{ fontWeight: "500", color: colors.deepOrange[900] }}
+                >
+                  Followers{" "}
+                  {Math.round(Math.floor(artist.followers.total) / 1000)} k
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+        );
+      })}
+    </Grid>
+  );
+};
 export default JomoAppBar;
