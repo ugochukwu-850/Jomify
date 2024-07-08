@@ -2,13 +2,13 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::Duration;
 
 use crate::menu::auth_structures::{AuthCreds, MetaInfo};
-use crate::menu::utils::{generate_audio_path, wait_read_file};
+use crate::menu::utils::{generate_audio_path, simple_random, wait_read_file};
 use crate::{AppState, JomoQueue};
 
 use super::auth_structures::{Settings, SupportedApps, User};
@@ -26,7 +26,7 @@ use rusty_ytdl::search::{SearchResult, YouTube};
 use rusty_ytdl::{Video, VideoOptions, VideoQuality, VideoSearchOptions};
 use serde_json::json;
 use tauri::api::notification::Notification;
-use tauri::api::path::app_data_dir;
+use tauri::api::path::{app_data_dir, resource_dir};
 use tauri::{command, window, Manager, Window};
 
 // Define the store state to hold the store
@@ -311,11 +311,15 @@ pub async fn process_queue(
                 {
                     Ok(_) => {}
                     Err(_) => continue,
-                };
+                }
             }
-            Err(_) => {continue},
-        }
+            Err(_) => {
+                // emit error
+                continue;
+            }
+        };
     }
+
     Ok(())
 }
 
@@ -327,7 +331,10 @@ pub fn play_queue(
     let mut loop_i = 0;
     let (_stream, stream_handle) = OutputStream::try_default().expect("Failed to find default");
     let sink = Arc::new(Sink::try_new(&stream_handle).expect("Failed to load sink "));
+    sink.pause();
     let repeat = Arc::new(RwLock::new(false));
+    let shuffle = Arc::new(RwLock::new(false));
+
     // start a loop on play
     let sink2 = sink.clone();
     let window1 = window.clone();
@@ -417,7 +424,7 @@ pub fn play_queue(
         stop_sink.stop();
     });
 
-    // repeat clone
+    // repeat event
     let repeat_clone = repeat.clone();
     window.listen("toggle-repeat", move |_| {
         let repeat = repeat_clone
@@ -425,6 +432,41 @@ pub fn play_queue(
             .expect("Failed to read the repeat")
             .clone();
         *repeat_clone.write().expect("Failed to write lock repeat") = !repeat;
+    });
+
+    // shuffle event
+    let shuffle_clone = shuffle.clone();
+    window.listen("toggle-shuffle", move |_| {
+        let shuffle = shuffle_clone
+            .read()
+            .expect("Failed to read the repeat")
+            .clone();
+        *shuffle_clone.write().expect("Failed to write lock repeat") = !shuffle;
+    });
+
+    // position event
+    let position = RwLock::new(0);
+    let window4 = window.clone();
+    let sink4 = sink.clone();
+    window.listen("set-position", move |e| {
+        if e.payload().is_some() {
+            if let Ok(e) = e.payload().unwrap().parse::<u32>() {
+                *position.write().expect("failed to write") = e;
+            } else {
+                return;
+            };
+        } else {
+            let _ = window4.emit(
+                "current-position",
+                *position.read().expect("failed to read"),
+            );
+            let _ = window4
+                .emit(
+                    "sink-playing-status",
+                    json!({"playing": !sink4.is_paused()}).to_string(),
+                )
+                .expect("Failed to run event");
+        }
     });
 
     '_player_loop: loop {
@@ -532,6 +574,7 @@ pub fn play_queue(
                 if queue.read().expect("Head failed to wait").head.unwrap() != before_wait_head
                     || file.is_some()
                 {
+                    thread::sleep(Duration::from_secs(2));
                     break 'recurse_get_file;
                 }
                 // try to get the file
@@ -539,10 +582,8 @@ pub fn play_queue(
                     Some(e)
                 } else {
                     // if not file just continue
-                    thread::sleep(Duration::from_secs(3));
                     continue 'recurse_get_file;
                 };
-                thread::sleep(Duration::from_secs(5));
                 println!("Attempting find retry: {}", x);
             }
 
@@ -562,7 +603,6 @@ pub fn play_queue(
                 sink.stop();
                 // Append the new source file
                 println!("Appending source to play it");
-
                 sink.append(source);
 
                 // emit that the current playing is now not loading
@@ -578,11 +618,15 @@ pub fn play_queue(
                 if *repeat.read().expect("Failed to read repeat") {
                     continue;
                 }
-
                 let cur_queue = queue.read().expect("Failed to read").clone();
-                queue.write().expect("Failed to write").head = Some(
-                    cur_queue.head.unwrap().wrapping_add(1) % cur_queue.que_track.len() as u32,
-                );
+
+                let index = if *shuffle.read().expect("Failed to read") {
+                    cur_queue.head.unwrap().wrapping_add(simple_random())
+                        % cur_queue.que_track.len() as u32
+                } else {
+                    cur_queue.head.unwrap().wrapping_add(1) % cur_queue.que_track.len() as u32
+                };
+                queue.write().expect("Failed to write").head = Some(index);
             }
         }
         thread::sleep(Duration::from_secs(1));
