@@ -1,24 +1,22 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{collections::HashSet, panic, path::PathBuf, sync::RwLock, thread, time::Duration};
+use std::{collections::HashSet, path::PathBuf, sync::RwLock};
 
 use menu::{
     auth_structures::User,
     commands::play_queue,
     gear_structures::Track,
     utils::{
-        arc_rwlock_serde, generate_audio_path, generate_search_query, generate_video_path,
+        arc_rwlock_serde,
+        generate_audio_path,
+        generate_search_query,
+        generate_video_path,
         get_data_from_db,
     },
 };
-use rodio::{Decoder, OutputStream, Sink};
 use serde::{Deserialize, Serialize};
-use sled::Db;
-use tauri::{
-    api::{notification::Notification, path::app_data_dir},
-    Manager, WindowEvent,
-};
+use tauri::{api::path::app_data_dir, Manager, WindowEvent};
 
 pub mod menu;
 use std::sync::{Arc, Mutex};
@@ -88,6 +86,7 @@ fn main() {
 
             // Open or create the Sled database
             let db = sled::open(db_path).expect("Failed to load db");
+            println!("Database was recovered: {}", db.was_recovered());
 
             // Store the database in Tauri's state
             let app = Arc::new(app);
@@ -101,15 +100,19 @@ fn main() {
 
             //try to get start from db
             let db = app.state::<sled::Db>();
-            let state = if let Ok(state) = get_data_from_db(&db, "app_state") {
-                state
-            } else {
-                AppState::new()
+            let state = match get_data_from_db(&db, "app_state") {
+                Ok(state) => {
+                    println!("Found something");
+                    state
+                },
+                Err(e) => {
+                    println!("The error while retrieving the database: {:?}", e);
+                    AppState::new()
+                }
             };
 
             println!("{:?}", state);
             app.manage(state);
-            let config = app.config();
             let app_state = app.state::<AppState>();
             let app_queue = app_state.queue.clone();
 
@@ -180,27 +183,39 @@ fn main() {
         ])
         .on_window_event(|event| {
             // create a handler closure for default exit and save protocol
+
             let save_protocol_oo1 = || {
-                // retrieve app handle
+                // Retrieve app handle
                 let app_handle = event.window().app_handle();
 
-                // retrieve db handle from state
+                // Retrieve db handle from state
                 let db = app_handle.state::<sled::Db>();
 
-                // retrieve app state from state
+                // Retrieve app state from state
                 let state = app_handle.state::<AppState>();
+                let state = &*state;
 
-                //
                 println!("Initializing data persist");
-                // save to db and exit successfully
-                let _ = db.insert(
-                    "app_state",
-                    serde_json::to_vec(&*state).expect("Failed to parse"),
-                );
-                println!("Data persist successfully . \n Gracefull shutdown");
+
+                // Serialize the state to JSON
+                
+
+                // Save to db and exit successfully
+                let res = db.insert("app_state", &*serde_json::to_string(state).expect("Failed to load"));
+                match res {
+                    Ok(Some(e)) => {
+                        println!("Data persisted successfully. Former: {:?}", serde_json::from_slice::<AppState>(&e).expect("Failed"));
+                    },
+                    Ok(None) => {println!("Persisted safely")},
+                    Err(err) => {
+                        println!("Failed to persist data: {:?}", err);
+                    }
+                }
+                let _ = db.insert("mayo", "Example of a mayonaise");
 
                 app_handle.exit(0);
             };
+
             if let WindowEvent::CloseRequested { api, .. } = event.event() {
                 // Perform any cleanup before the application closes
                 println!("Application is closing...");

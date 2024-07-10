@@ -1,35 +1,30 @@
 use std::{
-    fmt,
+    
     fs::File,
     net::TcpListener,
     path::PathBuf,
-    str::FromStr,
-    sync::{Arc, Mutex, RwLock},
-    thread,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{ SystemTime, UNIX_EPOCH},
 };
 
 use serde::{
-    de::{self, DeserializeOwned, MapAccess, Visitor},
-    ser::SerializeStruct,
-    Deserialize, Deserializer, Serialize, Serializer,
+    // de::DeserializeOwned,
+    de::DeserializeOwned, Deserialize, Deserializer, Serialize, Serializer
 };
 
-use crate::{
-    menu::{auth_structures::User, core_structures::HomeResponse},
-    AppState, JomoQueue,
-};
 
-use super::{errors::MyError, gear_structures::SimplifiedArtist};
+use super::errors::MyError;
 
 pub fn get_data_from_db<T: DeserializeOwned + Serialize>(
     db: &tauri::State<'_, sled::Db>,
     key: impl AsRef<[u8]>,
 ) -> Result<T, MyError> {
     if let Some(user) = db.get(key)? {
-        return Ok(serde_json::from_slice(&user)?);
+        let user: T = serde_json::from_slice(&user)?;
+        return Ok(user);
     }
+    else {
     Err(anyhow::anyhow!("Error there is no user in db"))?
+    }
 }
 
 pub fn generate_search_query(name: &String, artists_names: &Vec<String>) -> String {
@@ -72,13 +67,12 @@ pub fn wait_read_file(filepath: &PathBuf) -> Result<File, MyError> {
     }
 }
 
-use std::process::Stdio;
 use tauri::{
     api::{
         process::{Command, CommandEvent},
         shell::open,
     },
-    command, Manager,
+    Manager,
 };
 
 pub async fn run_ffmpeg_command(
@@ -155,7 +149,7 @@ pub async fn run_ffmpeg_command(
 
 pub mod arc_rwlock_serde {
     use super::*;
-    use std::sync::RwLock;
+    use std::sync::{Arc, RwLock};
 
     pub fn serialize<T, S>(data: &Arc<RwLock<T>>, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -174,8 +168,6 @@ pub mod arc_rwlock_serde {
         T::deserialize(deserializer).map(|data| Arc::new(RwLock::new(data)))
     }
 }
-
-use tauri::async_runtime::channel;
 
 pub async fn retrieve_code(
     window: tauri::Window,

@@ -1,9 +1,7 @@
 use std::collections::HashSet;
-use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
 
@@ -14,20 +12,18 @@ use crate::{AppState, JomoQueue};
 use super::auth_structures::{Settings, SupportedApps, User};
 use super::core_structures::HomeResponse;
 use super::errors::MyError;
-use super::gear_structures::{AlbumItem, Artist, FeaturedPlaylistRequest, Track, Tracks};
-use super::utils::{get_data_from_db, retrieve_code, run_ffmpeg_command};
+use super::gear_structures::{AlbumItem, Artist, Track};
+use super::utils::{retrieve_code, run_ffmpeg_command};
 
 use anyhow::anyhow;
 use oauth2::reqwest::async_http_client;
-use oauth2::url::Url;
 use oauth2::{AuthorizationCode, CsrfToken, PkceCodeChallenge, PkceCodeVerifier};
-use rodio::{queue, Decoder, OutputStream, Sink, Source};
+use rodio::{Decoder, OutputStream, Sink};
 use rusty_ytdl::search::{SearchResult, YouTube};
 use rusty_ytdl::{Video, VideoOptions, VideoQuality, VideoSearchOptions};
 use serde_json::json;
 use tauri::api::notification::Notification;
-use tauri::api::path::{app_data_dir, resource_dir};
-use tauri::{command, window, Manager, Window};
+use tauri::{command, Manager, Window};
 
 // Define the store state to hold the store
 #[command]
@@ -35,7 +31,6 @@ pub async fn sign_in(
     client_id: Option<String>,
     app_name: String,
     window: Window,
-    db: tauri::State<'_, sled::Db>,
     app_state: tauri::State<'_, AppState>,
 ) -> Result<String, MyError> {
     println!("Gotten request to sign in");
@@ -78,7 +73,6 @@ pub async fn sign_in(
         client.client_id().to_string(),
         app,
         csrf_token.secret().to_string(),
-        db,
         app_state,
     )
     .await?;
@@ -97,7 +91,6 @@ pub async fn exchange_auth_code(
     client_id: String,
     app: SupportedApps,
     csrf: String,
-    db: tauri::State<'_, sled::Db>,
     app_state: tauri::State<'_, AppState>,
 ) -> Result<User, MyError> {
     // Async function actually run the exchange - This function could later become a closure
@@ -122,16 +115,16 @@ pub async fn exchange_auth_code(
         .await;
     match token_result {
         Ok(token) => {
-            let token: AuthCreds = token.into();
-            eprintln!("Got token | Expires in => {:?}", token.expires_at);
-            let _ = db.insert(app.app_auth_key(), &*serde_json::to_string(&token)?)?;
-            let profile = app.profile(&token.access_token).await?;
+            let auth_creds: AuthCreds = token.into();
+            eprintln!("Got token | Expires in => {:?}", auth_creds.expires_at);
+            let profile = app.profile(&auth_creds.access_token).await?;
             let meta = MetaInfo { client_id };
             let user = User {
                 app,
                 settings: Settings::new_default(),
                 profile,
                 meta,
+                auth_creds
             };
             // insert db into state : NB: would be saved to memory on exit
             app_state
@@ -139,6 +132,8 @@ pub async fn exchange_auth_code(
                 .lock()
                 .expect("Failed to lock user")
                 .replace(user.clone());
+
+            // save the user authentication data into database
             Ok(user)
         }
         Err(err) => Err(anyhow::anyhow!(err))?,
@@ -152,18 +147,12 @@ pub async fn exchange_auth_code(
 /// If the refresh_token or refresh process fails then it returns false
 /// NB: If no access creds it returns ```false```
 pub async fn is_authenticated(
-    db: tauri::State<'_, sled::Db>,
     app_state: tauri::State<'_, AppState>,
 ) -> Result<bool, MyError> {
     let user = app_state.user.lock().expect("Failed to lock user").clone();
-    if let Some(user) = user {
+    if let Some(mut user) = user {
         println!("Found user =|>|: {:?} \n", user.profile.display_name);
-        let res = user.is_authenticated(db).await?;
-        let mut app_state = app_state
-            .user
-            .lock()
-            .map_err(|_| MyError::Custom("Error unlocking state".to_string()))?;
-        *app_state = Some(user.clone());
+        let res = user.is_authenticated().await?;
         return Ok(res);
     }
     Err(anyhow!("Error there is no user in db"))?
@@ -171,17 +160,15 @@ pub async fn is_authenticated(
 
 #[command]
 pub async fn home(
-    db: tauri::State<'_, sled::Db>,
     app_state: tauri::State<'_, AppState>,
-    window: Window,
 ) -> Result<HomeResponse, MyError> {
     let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
     let user = match app_state.user.lock() {
         Ok(e) => e.clone(),
         Err(_) => return var_name,
     };
-    if let Some(user) = user {
-        let home = user.home(db).await;
+    if let Some(mut user) = user {
+        let home = user.home().await;
         return home;
     };
 
@@ -191,12 +178,11 @@ pub async fn home(
 pub async fn get_tracks(
     object: String,
     id: String,
-    db: tauri::State<'_, sled::Db>,
     app_state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Track>, MyError> {
     let user = app_state.user.lock().unwrap().clone();
-    if let Some(user) = user {
-        return user.get_tracks(id, object, db).await;
+    if let Some(mut user) = user {
+        return user.get_tracks(id, object).await;
     }
 
     Err(anyhow::anyhow!("Error"))?
@@ -792,7 +778,7 @@ pub fn download(tracks: Vec<Track>, window: Window) -> Result<(), MyError> {
 /// Instead it checks if every track in the request data is in downloaded
 /// it triggers and emits an event with the status of the track
 pub fn is_downloaded(window: Window, tracks: Vec<Track>) {
-    let root_dir = if let Some(e) = app_data_dir(&window.config()) {
+    let root_dir = if let Some(e) = tauri::api::path::app_data_dir(&window.config()) {
         e.join("media")
     } else {
         return;
@@ -820,7 +806,7 @@ pub fn get_queue(window: Window) -> Result<Vec<Track>, MyError> {
     let queue_tracks = state
         .queue
         .read()
-        .map_err(|e| MyError::Custom(format!("Function get tracks: this lock is poisoned")))?
+        .map_err(|_e| MyError::Custom(format!("Function get tracks: this lock is poisoned")))?
         .que_track
         .clone();
     Ok(queue_tracks)
@@ -834,7 +820,7 @@ pub fn get_head(window: Window) -> Result<Track, MyError> {
     let queue_tracks = state
         .queue
         .read()
-        .map_err(|e| MyError::Custom(format!("Function get tracks: this lock is poisoned")))?;
+        .map_err(|_e| MyError::Custom(format!("Function get tracks: this lock is poisoned")))?;
     if let Some(e) = queue_tracks.head {
         return Ok(queue_tracks.que_track[e as usize].clone());
     } else {
@@ -887,15 +873,14 @@ pub fn play_next(window: Window, track: Track) {
 pub async fn artist_detail(
     id: String,
     window: Window,
-    db: tauri::State<'_, sled::Db>,
 ) -> Result<Artist, MyError> {
     let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
     let user = match window.state::<AppState>().user.lock() {
         Ok(e) => e.clone(),
         Err(_) => return var_name,
     };
-    if let Some(user) = user {
-        let home = user.get_artist(id, db).await;
+    if let Some(mut user) = user {
+        let home = user.get_artist(id).await;
         return home;
     };
 
@@ -908,15 +893,14 @@ pub async fn artist_detail(
 pub async fn artist_albums(
     id: String,
     window: Window,
-    db: tauri::State<'_, sled::Db>,
 ) -> Result<Vec<AlbumItem>, MyError> {
     let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
     let user = match window.state::<AppState>().user.lock() {
         Ok(e) => e.clone(),
         Err(_) => return var_name,
     };
-    if let Some(user) = user {
-        let home = user.get_artist_albums(id, db).await;
+    if let Some(mut user) = user {
+        let home = user.get_artist_albums(id).await;
         return home;
     };
 
@@ -929,15 +913,14 @@ pub async fn artist_albums(
 pub async fn search_command(
     q: String,
     window: Window,
-    db: tauri::State<'_, sled::Db>,
 ) -> Result<super::gear_structures::SearchResult, MyError> {
     let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
     let user = match window.state::<AppState>().user.lock() {
         Ok(e) => e.clone(),
         Err(_) => return var_name,
     };
-    if let Some(user) = user {
-        let home = user.search(q, db).await;
+    if let Some(mut user) = user {
+        let home = user.search(q).await;
         return home;
     };
 

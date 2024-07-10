@@ -6,7 +6,6 @@ use oauth2::{
     StandardTokenResponse, TokenResponse, TokenType, TokenUrl,
 };
 
-
 use serde::{Deserialize, Serialize};
 
 use super::errors::MyError;
@@ -58,7 +57,7 @@ pub struct Settings {
     equalizer: Equalizer,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 
 pub struct AuthCreds {
     pub access_token: String,
@@ -74,6 +73,7 @@ pub struct User {
     pub settings: Settings,
     pub profile: UserProfileData,
     pub meta: MetaInfo,
+    pub auth_creds: AuthCreds,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -81,57 +81,47 @@ pub struct MetaInfo {
     pub client_id: String,
 }
 impl User {
-    pub async fn is_authenticated(&self, db: tauri::State<'_, sled::Db>) -> Result<bool, MyError> {
-        match self.get_auth_creds(db).await {
+    pub async fn is_authenticated(&mut self) -> Result<bool, MyError> {
+        match self.get_auth_creds().await {
             Ok(_) => Ok(true),
             Err(e) => Err(e),
         }
     }
     /// Gets the auth creds and refresh them if neccessary
     pub async fn get_auth_creds(
-        &self,
-        db: tauri::State<'_, sled::Db>,
+        &mut self,
     ) -> Result<AuthCreds, MyError> {
         match self.app {
             SupportedApps::Spotify => {
-                let app_auth_key = self.app.app_auth_key();
-                match db.get(&app_auth_key)? {
-                    Some(data) => {
-                        let auth_cred: AuthCreds = serde_json::from_slice(&data)?;
-                        let auth_cred = self.refresh(auth_cred).await?;
-                        db.insert(&app_auth_key, &*serde_json::to_vec(&auth_cred)?)?;
-                        Ok(auth_cred)
-                    }
-                    None => Err(anyhow::anyhow!("No key for current app in database"))?,
-                }
+                let auth_cred = &self.auth_creds;
+                let auth_cred = self.refresh(auth_cred).await?;
+                self.auth_creds = auth_cred.clone();
+                Ok(auth_cred)
             }
         }
     }
-    
-    async fn refresh(&self, creds: AuthCreds) -> Result<AuthCreds, MyError> {
+
+    async fn refresh(&self, creds: &AuthCreds) -> Result<AuthCreds, MyError> {
         match self.app {
             SupportedApps::Spotify => {
                 if creds.expires_at > chrono::Utc::now().timestamp() {
-                     return Ok(creds);
-                 }
+                    return Ok(creds.clone());
+                }
 
                 let client = reqwest::Client::new();
                 let uri = self
                     .app
                     .generate_endpoints(Some(self.meta.client_id.to_owned()));
-                let token = creds.refresh_token.unwrap();
-                println!("{token}");
+                let token = creds.refresh_token.as_ref().unwrap();
+                let client_id = &self.meta.client_id;
+                let grant_type = &String::from("refresh_token");
                 let params = HashMap::from([
                     ("refresh_token", token),
-                    ("client_id", self.meta.client_id.to_owned()),
-                    ("grant_type", "refresh_token".to_owned())
+                    ("client_id", client_id),
+                    ("grant_type", grant_type),
                 ]);
 
-                let res = client
-                    .post(uri.token_url)
-                    .form(&params)
-                    .send()
-                    .await;
+                let res = client.post(uri.token_url).form(&params).send().await;
 
                 match res {
                     Ok(response) => {
@@ -142,7 +132,10 @@ impl User {
                             return Ok(auth_creds);
                         }
 
-                        Err(MyError::Custom(format!("Refresh operation did not succeed: {:?} ", &response.text().await)))
+                        Err(MyError::Custom(format!(
+                            "Refresh operation did not succeed: {:?} ",
+                            &response.text().await
+                        )))
                     }
                     Err(e) => Err(MyError::Custom(format!(
                         "An error occured while making the refresh request: {}",
