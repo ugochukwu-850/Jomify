@@ -212,6 +212,10 @@ fn main() {
                     }
                     Err(_) => println!("Something wrong happened ; Failed to save state to db"),
                 }
+                let start = std::time::Instant::now();
+                if let Ok(e) = db.flush() {
+                    println!("Flushed {} bytes in {} seconds ", e, (std::time::Instant::now() - start).as_secs_f64());
+                }
 
                 println!("Data persist successfully . \n Gracefull shutdown");
 
