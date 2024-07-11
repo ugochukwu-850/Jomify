@@ -4,13 +4,10 @@
 use std::{collections::HashSet, panic, path::PathBuf, sync::RwLock, thread, time::Duration};
 
 use menu::{
-    auth_structures::User,
-    commands::play_queue,
-    gear_structures::Track,
-    utils::{
+    auth_structures::User, commands::play_queue, errors::MyError, gear_structures::Track, utils::{
         arc_rwlock_serde, generate_audio_path, generate_search_query, generate_video_path,
         get_data_from_db,
-    },
+    }
 };
 use rodio::{Decoder, OutputStream, Sink};
 use serde::{Deserialize, Serialize};
@@ -42,6 +39,28 @@ impl AppState {
         Self {
             user: Mutex::new(None),
             queue: Arc::new(RwLock::new(JomoQueue::new())),
+        }
+    }
+
+    pub fn save_to_db(&self, db: &tauri::State<'_, sled::Db>) -> Result<Self, MyError> {
+        match db.insert("app_state", serde_json::to_vec(&self)?) {
+            Ok(Some(former)) => Ok(serde_json::from_slice(&former)?),
+            Ok(None) => Ok(Self::new()),
+            Err(_) => Err(MyError::Custom("Error saving the app state".to_string())),
+        }
+    }
+
+    pub fn new_from_db(db: &tauri::State<'_, sled::Db>) -> Result<Self, MyError> {
+        match db.get("app_state") {
+            Ok(Some(former)) => Ok(serde_json::from_slice(&former)?),
+            Ok(None) => {
+                println!("Found nothing in the db at app state ; so creating a new app state");
+                Ok(Self::new())
+            },
+            Err(_) => {
+                println!("An error occured while generating appstate from db; You should get a clean app state instance");
+                Ok(Self::new())
+            },
         }
     }
 }
@@ -101,11 +120,7 @@ fn main() {
 
             //try to get start from db
             let db = app.state::<sled::Db>();
-            let state = if let Ok(state) = get_data_from_db(&db, "app_state") {
-                state
-            } else {
-                AppState::new()
-            };
+            let state = AppState::new_from_db(&db).expect("This would never fail; thanks to exceptional error handling");
 
             println!("{:?}", state);
             app.manage(state);
@@ -194,10 +209,11 @@ fn main() {
                 //
                 println!("Initializing data persist");
                 // save to db and exit successfully
-                let _ = db.insert(
-                    "app_state",
-                    serde_json::to_vec(&*state).expect("Failed to parse"),
-                );
+                match state.save_to_db(&db) {
+                    Ok(former) => println!("Saved succesffuly ; this was the former \n {:?}", former),
+                    Err(_) => println!("Something wrong happened ; Failed to save state to db"),
+                }
+
                 println!("Data persist successfully . \n Gracefull shutdown");
 
                 app_handle.exit(0);
