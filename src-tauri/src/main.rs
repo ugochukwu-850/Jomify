@@ -4,21 +4,11 @@
 use std::{collections::HashSet, path::PathBuf, sync::RwLock};
 
 use menu::{
-<<<<<<< HEAD
-    auth_structures::User, commands::play_queue, errors::MyError, gear_structures::Track, utils::{
-        arc_rwlock_serde, generate_audio_path, generate_search_query, generate_video_path,
-=======
     auth_structures::User,
     commands::play_queue,
+    errors::MyError,
     gear_structures::Track,
-    utils::{
-        arc_rwlock_serde,
-        generate_audio_path,
-        generate_search_query,
-        generate_video_path,
->>>>>>> refs/remotes/origin/main
-        get_data_from_db,
-    }
+    utils::{arc_rwlock_serde, generate_audio_path, generate_search_query, generate_video_path},
 };
 use serde::{Deserialize, Serialize};
 use tauri::{api::path::app_data_dir, Manager, WindowEvent};
@@ -62,11 +52,11 @@ impl AppState {
             Ok(None) => {
                 println!("Found nothing in the db at app state ; so creating a new app state");
                 Ok(Self::new())
-            },
+            }
             Err(_) => {
                 println!("An error occured while generating appstate from db; You should get a clean app state instance");
                 Ok(Self::new())
-            },
+            }
         }
     }
 }
@@ -127,20 +117,8 @@ fn main() {
 
             //try to get start from db
             let db = app.state::<sled::Db>();
-<<<<<<< HEAD
-            let state = AppState::new_from_db(&db).expect("This would never fail; thanks to exceptional error handling");
-=======
-            let state = match get_data_from_db(&db, "app_state") {
-                Ok(state) => {
-                    println!("Found something");
-                    state
-                },
-                Err(e) => {
-                    println!("The error while retrieving the database: {:?}", e);
-                    AppState::new()
-                }
-            };
->>>>>>> refs/remotes/origin/main
+            let state = AppState::new_from_db(&db)
+                .expect("This would never fail; thanks to exceptional error handling");
 
             println!("{:?}", state);
             app.manage(state);
@@ -227,32 +205,15 @@ fn main() {
                 let state = &*state;
 
                 println!("Initializing data persist");
-<<<<<<< HEAD
                 // save to db and exit successfully
                 match state.save_to_db(&db) {
-                    Ok(former) => println!("Saved succesffuly ; this was the former \n {:?}", former),
+                    Ok(former) => {
+                        println!("Saved succesffuly ; this was the former \n {:?}", former)
+                    }
                     Err(_) => println!("Something wrong happened ; Failed to save state to db"),
                 }
 
                 println!("Data persist successfully . \n Gracefull shutdown");
-=======
-
-                // Serialize the state to JSON
-                
-
-                // Save to db and exit successfully
-                let res = db.insert("app_state", &*serde_json::to_string(state).expect("Failed to load"));
-                match res {
-                    Ok(Some(e)) => {
-                        println!("Data persisted successfully. Former: {:?}", serde_json::from_slice::<AppState>(&e).expect("Failed"));
-                    },
-                    Ok(None) => {println!("Persisted safely")},
-                    Err(err) => {
-                        println!("Failed to persist data: {:?}", err);
-                    }
-                }
-                let _ = db.insert("mayo", "Example of a mayonaise");
->>>>>>> refs/remotes/origin/main
 
                 app_handle.exit(0);
             };
