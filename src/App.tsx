@@ -10,13 +10,12 @@ import { StyledEngineProvider } from "@mui/material";
 
 import { invoke } from "@tauri-apps/api/tauri";
 import Home from "./components/Home";
+import { appWindow } from "@tauri-apps/api/window";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
-    console.log("Running Effect in app component");
-
     let run_auth_status = async () => {
       try {
         let loginStatus: boolean = await invoke("is_authenticated");
@@ -30,18 +29,43 @@ function App() {
 
     run_auth_status();
   }, []);
+
+  useEffect(() => {
+    // use an effect to listen if the user has been authenticated by a backend process
+    // if the event is called then set loggedin to true
+    const StateLessAuthenticationCheck = async () => {
+      // try and wait for the response
+      try {
+        console.log("Waiting for any user log update");
+
+        let unlisten = await appWindow.listen<string>("authentication", (event) => {
+          console.log(event.payload);
+          if (event.payload == "loggedIn") {
+            setLoggedIn(true);
+          } else if (event.payload == "loggedOut") {
+            setLoggedIn(false);
+          }
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    
+    StateLessAuthenticationCheck();
+  }, []);
+
   console.log(loggedIn);
-  if (loggedIn === null) {
-    return <>Loading</>
-  }
-  else if (loggedIn === false) {
-    return <AuthPage />;
-  } else {
+
+  if (loggedIn) {
     return (
       <StyledEngineProvider injectFirst>
-        <Home/>
+        <Home />
       </StyledEngineProvider>
     );
+  } else if (loggedIn == null) {
+    return <></>;
+  } else {
+    return <AuthPage />;
   }
 }
 

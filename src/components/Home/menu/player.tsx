@@ -136,7 +136,6 @@ const PlayerControls = (props: { duration: number | undefined }) => {
             console.log("Printing the event response", event.payload);
           }
         );
-        unlisten();
       } catch (error) {
         console.log(error);
       }
@@ -161,7 +160,6 @@ const PlayerControls = (props: { duration: number | undefined }) => {
           console.log("Current posiiton as from backend => ", event.payload);
           setPosition(parseInt(event.payload))
         });
-        await appWindow.emit("set-position");
       } catch (error) {
         console.log(error);
       }
@@ -178,8 +176,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
       if (
         props.duration &&
         playing &&
-        position <= props.duration / 1000 &&
-        !loading
+        position <= props.duration / 1000
       ) {
         setPosition((prevPosition) => prevPosition + 1);
         await appWindow.emit("set-position", position);

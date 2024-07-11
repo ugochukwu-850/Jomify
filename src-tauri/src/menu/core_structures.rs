@@ -1,18 +1,14 @@
-use oauth2::reqwest::async_http_client;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::fmt::format;
 
-use crate::{
-    menu::gear_structures::{AlbumTrackItemResponse, PlaylistTrackItemsResponse},
-    AppState,
-};
+use crate::menu::gear_structures::{AlbumTrackItemResponse, PlaylistTrackItemsResponse};
 
 use super::{
     auth_structures::User,
     errors::MyError,
     gear_structures::{
-        AlbumItem, Albums, Artist, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse, PlaylistItem, Playlists, SearchResult, SimplifiedArtist, Track
+        AlbumItem, Albums, Artist, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse,
+        PlaylistItem, Playlists, SearchResult, SimplifiedArtist, Track,
     },
 };
 
@@ -63,16 +59,16 @@ impl HomeResponse {
         // get the featured playlists
         let FeaturedPlaylistRequest {
             message: _,
-            playlists: Playlists { items, total },
+            playlists: Playlists { items, total: _ },
         } = Self::get_featured_playlists(&access_token).await?;
 
         //create seperate tags for each aile
-        let items_len = items.len();
+        // let items_len = items.len();
         let simple_featured_pl: Vec<DefaultObjectsPreview> =
             items.into_iter().map(|f| f.into()).collect();
 
         let NewReleaseAlbumResponse {
-            albums: Albums { items, total },
+            albums: Albums { items, total: _ },
         } = Self::get_new_release_albums(&access_token).await?;
 
         // convert the album to displayable type
@@ -104,9 +100,9 @@ impl HomeResponse {
             })
             .collect();
         let mut gallery = Vec::new();
-        gallery.extend(simple_featured_pl[8..].to_owned());
+        gallery.extend(simple_featured_pl[6..].to_owned());
         gallery.extend(new_albums);
-        let featured_playlists = simple_featured_pl[..8].to_vec();
+        let featured_playlists = simple_featured_pl[..6].to_vec();
         Ok(Self {
             gallery,
             featured_playlists,
@@ -188,52 +184,51 @@ impl HomeResponse {
 }
 
 impl User {
-    pub async fn home(&self, db: tauri::State<'_, sled::Db>) -> Result<HomeResponse, MyError> {
-        HomeResponse::new(self.get_auth_creds(db).await?.access_token).await
+    pub async fn home(&mut self) -> Result<HomeResponse, MyError> {
+        HomeResponse::new(self.get_auth_creds().await?.access_token).await
     }
 
-    pub async fn search(&self, q: String, db: tauri::State<'_, sled::Db>) -> Result<SearchResult, MyError> {
-        let access_token = self.get_auth_creds(db).await?.access_token;
+    pub async fn search(&mut self, q: String) -> Result<SearchResult, MyError> {
+        let access_token = self.get_auth_creds().await?.access_token;
         let client = Client::new();
-        let queries = [("offset", "0"), ("limit", "50"), ("q", &q), ("type", "album,artist,track")]; 
+        let queries = [
+            ("offset", "0"),
+            ("limit", "50"),
+            ("q", &q),
+            ("type", "album,artist,track"),
+        ];
 
         match client
-        .get(format!(
-            "https://api.spotify.com/v1/search/"
-        ))
-        .query(&queries)
-        .bearer_auth(access_token)
-        .send()
-        .await
-    {
-        Ok(response) => {
-            let status = response.status().is_success();
-            let text = &response.text().await?;
-            if status {
-                // parse the text to featured playlist
-                let items: SearchResult = serde_json::from_str(text)?;
-                return Ok(items);
+            .get(format!("https://api.spotify.com/v1/search/"))
+            .query(&queries)
+            .bearer_auth(access_token)
+            .send()
+            .await
+        {
+            Ok(response) => {
+                let status = response.status().is_success();
+                let text = &response.text().await?;
+                if status {
+                    // parse the text to featured playlist
+                    let items: SearchResult = serde_json::from_str(text)?;
+                    return Ok(items);
+                }
+
+                Err(MyError::Custom(text.to_owned()))
             }
-
-            Err(MyError::Custom(text.to_owned()))
+            Err(e) => Err(MyError::Custom(format!(
+                "Error from reqesting the tracks for albums: {}",
+                e.to_string()
+            ))),
         }
-        Err(e) => Err(MyError::Custom(format!(
-            "Error from reqesting the tracks for albums: {}",
-            e.to_string()
-        ))),
     }
 
-    }
-    
-
-    pub async fn get_artist(&self, id: String, db: tauri::State<'_, sled::Db>) -> Result<Artist, MyError> {
-        let access_token = self.get_auth_creds(db).await?.access_token;
+    pub async fn get_artist(&mut self, id: String) -> Result<Artist, MyError> {
+        let access_token = self.get_auth_creds().await?.access_token;
         let client = Client::new();
 
         match client
-            .get(format!(
-                "https://api.spotify.com/v1/artists/{id}"
-            ))
+            .get(format!("https://api.spotify.com/v1/artists/{id}"))
             .bearer_auth(access_token)
             .send()
             .await
@@ -256,15 +251,17 @@ impl User {
         }
     }
 
-    pub async fn get_artist_albums(&self, id: String, db: tauri::State<'_, sled::Db>) -> Result<Vec<AlbumItem>, MyError> {
-        let access_token = self.get_auth_creds(db).await?.access_token;
+    pub async fn get_artist_albums(&mut self, id: String) -> Result<Vec<AlbumItem>, MyError> {
+        let access_token = self.get_auth_creds().await?.access_token;
         let client = Client::new();
-        let queries = [("offset", "0"), ("limit", "50"), ("include_groups", "album,single,appears_on")];
+        let queries = [
+            ("offset", "0"),
+            ("limit", "50"),
+            ("include_groups", "album,single,appears_on"),
+        ];
 
         match client
-            .get(format!(
-                "https://api.spotify.com/v1/artists/{id}/albums"
-            ))
+            .get(format!("https://api.spotify.com/v1/artists/{id}/albums"))
             .query(&queries)
             .bearer_auth(access_token)
             .send()
@@ -289,12 +286,11 @@ impl User {
     }
 
     pub async fn get_tracks(
-        &self,
+        &mut self,
         object_id: String,
         object_type: String,
-        db: tauri::State<'_, sled::Db>,
     ) -> Result<Vec<Track>, MyError> {
-        let access_token = self.get_auth_creds(db).await?.access_token;
+        let access_token = self.get_auth_creds().await?.access_token;
         let client = Client::new();
         let queries = [("offset", "0"), ("limit", "50")];
 
