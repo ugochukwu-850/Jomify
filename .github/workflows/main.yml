@@ -64,22 +64,17 @@ jobs:
         # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
         run: npm install # change this to npm or pnpm depending on which one you use.
 
-      - name: download and extract ffmpeg
+      - name: download and extract ffmpeg (Linux & macOS)
+        if: ${{ matrix.platform != 'windows-latest' }}
         run: |
           mkdir -p ./src-tauri/bin
           mkdir -p ffmpeg
-          
-          if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
-            curl -L -o ffmpeg.zip "${{ matrix.ffmpeg_url }}"
-            unzip -o ffmpeg.zip -d ffmpeg
-            mv ffmpeg/bin/ffmpeg.exe ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}.exe
-          else
-            curl -L -o ffmpeg.tar.xz "${{ matrix.ffmpeg_url }}"
-            tar -xf ffmpeg.tar.xz --strip-components=1 -C ffmpeg
-            mv ffmpeg/ffmpeg ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}
-            chmod +x ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}
-          fi
+          curl -L -o ffmpeg.tar.xz "${{ matrix.ffmpeg_url }}"
+          tar -xf ffmpeg.tar.xz --strip-components=1 -C ffmpeg
+          mv ffmpeg/ffmpeg ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}
+          chmod +x ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}
         shell: bash
+
 
       - name: download and extract ffmpeg (Windows)
         if: matrix.platform == 'windows-latest'
