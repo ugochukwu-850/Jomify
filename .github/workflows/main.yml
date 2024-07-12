@@ -28,7 +28,7 @@ jobs:
             target_triple: 'x86_64-unknown-linux-gnu'
           - platform: 'windows-latest'
             args: ''
-            ffmpeg_url: 'https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-4.3.1-win64-static.zip'
+            ffmpeg_url: 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z'
             target_triple: 'x86_64-pc-windows-msvc'
 
     runs-on: ${{ matrix.platform }}
@@ -81,15 +81,15 @@ jobs:
           fi
         shell: bash
 
-      - name: download and extract ffmpeg (windows)
+      - name: download and extract ffmpeg (Windows)
         if: matrix.platform == 'windows-latest'
         run: |
-          New-Item -ItemType Directory -Force -Path ./src-tauri/bin
-          Invoke-WebRequest -Uri ${{ matrix.ffmpeg_url }} -OutFile ffmpeg.zip
-          Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg -Force
-          Move-Item -Path ffmpeg/bin/ffmpeg.exe -Destination ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}.exe
+          mkdir -p ./src-tauri/bin
+          curl -L -o ffmpeg.7z "${{ matrix.ffmpeg_url }}"
+          7z x ffmpeg.7z -offmpeg
+          mv ffmpeg/bin/ffmpeg.exe ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}.exe
         shell: powershell
-        
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
