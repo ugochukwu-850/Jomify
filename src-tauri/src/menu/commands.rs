@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::io::BufReader;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::Duration;
 
@@ -97,7 +97,9 @@ pub async fn exchange_auth_code(
 
     println!(
         "Parsed all the key information state -> {}  client id -> {} app_name -> {}",
-        csrf, client_id, app.name()
+        csrf,
+        client_id,
+        app.name()
     );
 
     if state != csrf {
@@ -124,7 +126,7 @@ pub async fn exchange_auth_code(
                 settings: Settings::new_default(),
                 profile,
                 meta,
-                auth_creds
+                auth_creds,
             };
             // insert db into state : NB: would be saved to memory on exit
             app_state
@@ -146,9 +148,7 @@ pub async fn exchange_auth_code(
 /// If access_creds are expired it trys to refresh using the refresh token
 /// If the refresh_token or refresh process fails then it returns false
 /// NB: If no access creds it returns ```false```
-pub async fn is_authenticated(
-    app_state: tauri::State<'_, AppState>,
-) -> Result<bool, MyError> {
+pub async fn is_authenticated(app_state: tauri::State<'_, AppState>) -> Result<bool, MyError> {
     let user = app_state.user.lock().expect("Failed to lock user").clone();
     if let Some(mut user) = user {
         println!("Found user =|>|: {:?} \n", user.profile.display_name);
@@ -159,9 +159,7 @@ pub async fn is_authenticated(
 }
 
 #[command]
-pub async fn home(
-    app_state: tauri::State<'_, AppState>,
-) -> Result<HomeResponse, MyError> {
+pub async fn home(app_state: tauri::State<'_, AppState>) -> Result<HomeResponse, MyError> {
     let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
     let user = match app_state.user.lock() {
         Ok(e) => e.clone(),
@@ -339,140 +337,173 @@ pub fn play_queue(
     let repeat = Arc::new(RwLock::new(false));
     let shuffle = Arc::new(RwLock::new(false));
 
-    // start a loop on play
-    let sink2 = sink.clone();
-    let window1 = window.clone();
-    window.listen("toggle-play", move |_| {
-        if sink2.is_paused() {
-            sink2.play();
-        } else {
-            sink2.pause()
-        }
-        window1
-            .emit(
-                "sink-playing-status",
-                json!({"playing": !sink2.is_paused()}).to_string(),
-            )
-            .expect("Failed to run event");
-        println!("Just toggled sink status => Playing {}", sink2.is_paused())
-    });
-
-    // set volume
-    let sink3 = sink.clone();
-    window.listen("set-volume", move |event| {
-        let payload = if let Some(e) = event.payload() {
-            e
-        } else {
-            return;
-        };
-        let position = payload.parse::<f32>().unwrap_or(1.0);
-        sink3.set_volume(position);
-    });
-
-    // set seek
-    let sink4 = sink.clone();
-    window.listen("seek", move |event| {
-        let payload = if let Some(e) = event.payload() {
-            e
-        } else {
-            return;
-        };
-        let seconds = payload.parse::<f32>().unwrap_or(1.0);
-        let _ = sink4.try_seek(Duration::from_secs_f32(seconds));
-    });
-
-    // set play
-    let set_play_sink = sink.clone();
-    let set_play_queue = queue.clone();
-    window.listen("set-play", move |event| {
-        if let Some(payload) = event.payload().and_then(|e| e.parse::<u32>().ok()) {
-            let mut write_guard = set_play_queue.write().expect("Failed to write");
-            write_guard.head = Some(payload); // Use wrapping_sub to avoid negative values
-            drop(write_guard); // Release the write lock before calling stop
-            set_play_sink.stop();
-        }
-    });
-
-    // next and previous sink
-
-    let next_sink = sink.clone();
-    let next_queue = queue.clone();
-    window.listen("next-previous", move |event| {
-        let current_head = next_queue.read().expect("Failed to read next").head;
-        if event.payload().is_some() {
-            if let Some(head) = current_head {
-                let len = next_queue.read().expect("read failed").que_track.len() as u32;
-                let mut write_lock = next_queue.write().expect("Failed to write");
-                write_lock.head = Some(head.wrapping_add(1) % len);
-                next_sink.stop();
+    // toggle the play state
+    let toggle_play = || {
+        let sink2 = sink.clone();
+        let window1 = window.clone();
+        window.listen("toggle-play", move |_| {
+            if sink2.is_paused() {
+                sink2.play();
+            } else {
+                sink2.pause()
             }
-        } else {
-            if let Some(head) = current_head {
-                let len = next_queue.read().expect("read failed").que_track.len() as u32;
-                let mut write_lock = next_queue.write().expect("Failed to write");
-                // because ones the sink is stoped it automatically updates the head by one ; Make the countback twice
-                write_lock.head = Some((head.wrapping_sub(1)) % len); // Use wrapping_sub to avoid negative values
-                next_sink.stop();
-            }
-        }
-        println!(
-            "Just toggled sink status => Playing {}",
-            next_sink.is_paused()
-        );
-        next_sink.play();
-    });
+            window1
+                .emit(
+                    "sink-playing-status",
+                    json!({"playing": !sink2.is_paused()}).to_string(),
+                )
+                .expect("Failed to run event");
+            println!("Just toggled sink status => Playing {}", sink2.is_paused())
+        });
+    };
 
-    // stop sink command
-    let stop_sink = sink.clone();
-    window.listen("stop-sink", move |_| {
-        stop_sink.stop();
-    });
-
-    // repeat event
-    let repeat_clone = repeat.clone();
-    window.listen("toggle-repeat", move |_| {
-        let repeat = repeat_clone
-            .read()
-            .expect("Failed to read the repeat")
-            .clone();
-        *repeat_clone.write().expect("Failed to write lock repeat") = !repeat;
-    });
-
-    // shuffle event
-    let shuffle_clone = shuffle.clone();
-    window.listen("toggle-shuffle", move |_| {
-        let shuffle = shuffle_clone
-            .read()
-            .expect("Failed to read the repeat")
-            .clone();
-        *shuffle_clone.write().expect("Failed to write lock repeat") = !shuffle;
-    });
-
-    // position event
-    let position = RwLock::new(0);
-    let window4 = window.clone();
-    let sink4 = sink.clone();
-    window.listen("set-position", move |e| {
-        if e.payload().is_some() {
-            if let Ok(e) = e.payload().unwrap().parse::<u32>() {
-                *position.write().expect("failed to write") = e;
+    let volume_control = || {
+        let sink3 = sink.clone();
+        window.listen("set-volume", move |event| {
+            let payload = if let Some(e) = event.payload() {
+                e
             } else {
                 return;
             };
-        } else {
-            let _ = window4.emit(
-                "current-position",
-                *position.read().expect("failed to read"),
-            );
-            let _ = window4
-                .emit(
-                    "sink-playing-status",
-                    json!({"playing": !sink4.is_paused()}).to_string(),
-                )
-                .expect("Failed to run event");
-        }
-    });
+            let position = payload.parse::<f32>().unwrap_or(1.0);
+            sink3.set_volume(position);
+        });
+    };
 
+    let seek_sink = || {
+        let sink4 = sink.clone();
+        window.listen("seek", move |event| {
+            let payload = if let Some(e) = event.payload() {
+                e
+            } else {
+                return;
+            };
+            let seconds = payload.parse::<f32>().unwrap_or(1.0);
+            let _ = sink4.try_seek(Duration::from_secs_f32(seconds));
+        });
+    };
+
+    let play_index = || {
+        let set_play_sink = sink.clone();
+        let set_play_queue = queue.clone();
+        window.listen("set-play", move |event| {
+            if let Some(payload) = event.payload().and_then(|e| e.parse::<u32>().ok()) {
+                let mut write_guard = set_play_queue.write().expect("Failed to write");
+                write_guard.head = Some(payload); // Use wrapping_sub to avoid negative values
+                drop(write_guard); // Release the write lock before calling stop
+                set_play_sink.stop();
+            }
+        });
+    };
+
+    let next_and_previous = || {
+        let next_sink = sink.clone();
+        let next_queue = queue.clone();
+        window.listen("next-previous", move |event| {
+            let current_head = next_queue.read().expect("Failed to read next").head;
+            if event.payload().is_some() {
+                if let Some(head) = current_head {
+                    let len = next_queue.read().expect("read failed").que_track.len() as u32;
+                    let mut write_lock = next_queue.write().expect("Failed to write");
+                    write_lock.head = Some(head.wrapping_add(1) % len);
+                    next_sink.stop();
+                }
+            } else {
+                if let Some(head) = current_head {
+                    let len = next_queue.read().expect("read failed").que_track.len() as u32;
+                    let mut write_lock = next_queue.write().expect("Failed to write");
+                    // because ones the sink is stoped it automatically updates the head by one ; Make the countback twice
+                    write_lock.head = Some((head.wrapping_sub(1)) % len); // Use wrapping_sub to avoid negative values
+                    next_sink.stop();
+                }
+            }
+            println!(
+                "Just toggled sink status => Playing {}",
+                next_sink.is_paused()
+            );
+            next_sink.play();
+        });
+    };
+
+    let stop_sink = || {
+        // stop sink command
+        let stop_sink = sink.clone();
+        window.listen("stop-sink", move |_| {
+            stop_sink.stop();
+        });
+    };
+
+    let toggle_repeat = || {
+        let repeat_clone = repeat.clone();
+        window.listen("toggle-repeat", move |_| {
+            let repeat = repeat_clone
+                .read()
+                .expect("Failed to read the repeat")
+                .clone();
+            *repeat_clone.write().expect("Failed to write lock repeat") = !repeat;
+        });
+    };
+
+    let toggle_shuffle = || {
+        let shuffle_clone = shuffle.clone();
+        window.listen("toggle-shuffle", move |_| {
+            let shuffle = shuffle_clone
+                .read()
+                .expect("Failed to read the repeat")
+                .clone();
+            *shuffle_clone.write().expect("Failed to write lock repeat") = !shuffle;
+        });
+    };
+
+    let handle_position = || {
+        let sink = sink.clone();
+        let position = Arc::new(Mutex::new(0));
+        let r_pos = position.clone();
+        let window = window.clone();
+
+        window.listen("current-playing-changed", move |_| {
+            *r_pos.lock().expect("Failed to lock") = 0;
+        });
+
+        // Start main loop
+        '_main_loop: {
+            if !sink.is_paused() {
+                let mut position_guard = position.lock().expect("Failed to lock");
+                *position_guard += 1;
+                let _ = window.emit("sink-position", *position_guard);
+                thread::sleep(Duration::from_secs_f32(0.9999))
+            }
+        }
+    };
+
+    // Event handler: toggle play
+    toggle_play();
+
+    // Event handler: control volume
+    volume_control();
+
+    // Event handler: set seek
+    seek_sink();
+
+    // Event handler: Plays a particular track at index {}
+    play_index();
+
+    // Event handler: Handles next and previous functions
+    next_and_previous();
+
+    // Event handler: causes the sink to stop
+    stop_sink();
+
+    // Event handler: Toggles repeat
+
+    toggle_repeat();
+
+    //Event handler: toggles queue playback shuffle state
+    toggle_shuffle();
+
+    // Handles the state of the current queue position
+    handle_position();
+    
     '_player_loop: loop {
         // Only if sink is playing should you try to play the next song
         if !sink.is_paused() && queue.read().expect("Failed to read").que_track.len() > 0 {
@@ -870,10 +901,7 @@ pub fn play_next(window: Window, track: Track) {
 /// Command to retrive artist full data
 /// This commands returns a list of albums
 #[command]
-pub async fn artist_detail(
-    id: String,
-    window: Window,
-) -> Result<Artist, MyError> {
+pub async fn artist_detail(id: String, window: Window) -> Result<Artist, MyError> {
     let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
     let user = match window.state::<AppState>().user.lock() {
         Ok(e) => e.clone(),
@@ -890,10 +918,7 @@ pub async fn artist_detail(
 }
 
 #[command]
-pub async fn artist_albums(
-    id: String,
-    window: Window,
-) -> Result<Vec<AlbumItem>, MyError> {
+pub async fn artist_albums(id: String, window: Window) -> Result<Vec<AlbumItem>, MyError> {
     let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
     let user = match window.state::<AppState>().user.lock() {
         Ok(e) => e.clone(),
