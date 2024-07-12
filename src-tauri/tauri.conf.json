@@ -51,6 +51,7 @@
       "publisher": "Ugochukwu Chizaram",
       "externalBin": ["bin/ffmpeg"],
       "icon": [
+        "icons/jomo.ico",
         "icons/jomo.icns"
       ]
     }
