@@ -423,7 +423,7 @@ export const TrackTableView: FC<TrackTableViewProps> = ({
           <TableCell key="#" align="left" style={{ minWidth: 5 }}>
             <Typography>#</Typography>
           </TableCell>
-          <TableCell key="1header" align="left" style={{ minWidth: 100, maxWidth: 150 }}>
+          <TableCell key="1header" align="left" style={{ minWidth: 100 }}>
             <Typography sx={{textWrap: "pretty"}}>Title</Typography>
           </TableCell>
           <TableCell key="2header" align="left" style={{ minWidth: 100 }}>
@@ -698,7 +698,7 @@ export const TrackListItem: FC<TVC> = ({
           gap: ".5em",
           minWidth: 100,
         }}
-        style={{ minWidth: 100, maxWidth: 200 }}
+        style={{ minWidth: 100 }}
       >
         <Card sx={{ background: "transparent" }} elevation={0}>
           <CardMedia

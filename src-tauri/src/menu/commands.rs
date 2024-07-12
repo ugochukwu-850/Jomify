@@ -279,11 +279,30 @@ pub async fn process_queue(
                 let stream = video.stream().await.unwrap();
                 let mut total_bytes = Vec::new();
 
-                while let Some(chunk) = stream.chunk().await.unwrap_or_else(|_| None) {
+                while let Some(chunk) = if let Ok(e) = stream.chunk().await {
+                    e
+                } else {
+                    let _ = Notification::new(&window.config().tauri.bundle.identifier)
+                        .title("D603: Download Error")
+                        .body(format!("Could not complete downloading {}", track.name))
+                        .show();
+                    continue 'mainloop;
+                } {
                     // emit message of id of song and its byte downloaded
                     eprintln!("{} byte downloaded", chunk.len() / 1000);
 
                     total_bytes.extend(chunk);
+                }
+                if total_bytes.is_empty() {
+                    let message = format!(
+                        "Could not download track becuase no data in stream: {}",
+                        track.name
+                    );
+                    let _ = Notification::new(&window.config().tauri.bundle.identifier)
+                        .title("D606: Download Error")
+                        .body(message)
+                        .show();
+                    continue;
                 }
 
                 
