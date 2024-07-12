@@ -39,7 +39,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libasound2-dev
         # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
         # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
@@ -74,7 +74,7 @@ jobs:
           if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
             curl -L -o ffmpeg.zip "${{ matrix.ffmpeg_url }}"
             unzip -o ffmpeg.zip -d ffmpeg
-            mv ffmpeg/ffmpeg.exe ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}.exe
+            mv ffmpeg/bin/ffmpeg.exe ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}.exe
           else
             curl -L -o ffmpeg.tar.xz "${{ matrix.ffmpeg_url }}"
             tar -xf ffmpeg.tar.xz --strip-components=1 -C ffmpeg
