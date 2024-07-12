@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - release
-      - dist
       - distrib
 
 jobs:
@@ -69,11 +68,12 @@ jobs:
         run: |
           # Create a directory to store ffmpeg
           mkdir -p ./src-tauri/bin
+          mkdir -p ffmpeg
           
           # Download ffmpeg based on the platform
           if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
             curl -L -o ffmpeg.zip "${{ matrix.ffmpeg_url }}"
-            unzip ffmpeg.zip -d ffmpeg
+            unzip -o ffmpeg.zip -d ffmpeg
             mv ffmpeg/ffmpeg.exe ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}.exe
           else
             curl -L -o ffmpeg.tar.xz "${{ matrix.ffmpeg_url }}"
