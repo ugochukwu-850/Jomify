@@ -423,8 +423,8 @@ export const TrackTableView: FC<TrackTableViewProps> = ({
           <TableCell key="#" align="left" style={{ minWidth: 5 }}>
             <Typography>#</Typography>
           </TableCell>
-          <TableCell key="1header" align="left" style={{ minWidth: 100 }}>
-            <Typography>Title</Typography>
+          <TableCell key="1header" align="left" style={{ minWidth: 100, maxWidth: 150 }}>
+            <Typography sx={{textWrap: "pretty"}}>Title</Typography>
           </TableCell>
           <TableCell key="2header" align="left" style={{ minWidth: 100 }}>
             <Typography>Album</Typography>
@@ -698,7 +698,7 @@ export const TrackListItem: FC<TVC> = ({
           gap: ".5em",
           minWidth: 100,
         }}
-        style={{ minWidth: 100 }}
+        style={{ minWidth: 100, maxWidth: 200 }}
       >
         <Card sx={{ background: "transparent" }} elevation={0}>
           <CardMedia
@@ -715,7 +715,7 @@ export const TrackListItem: FC<TVC> = ({
             {downloaded ? <DoneOutlined sx={{ fontSize: "12px" }} /> : ""}
             {track.name}
           </Typography>
-          <Typography variant="body1">
+          <Typography sx={{overflowX: "clip"}} variant="body1">
             {track.artists.map((e, i) => {
               return (
                 <Link

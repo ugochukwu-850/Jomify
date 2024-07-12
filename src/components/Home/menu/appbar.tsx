@@ -31,7 +31,6 @@ import {
   SearchResultArtists,
 } from "../../../types";
 import nextPage, { generate_artist_page, previousPage } from "../../../util";
-import { Artist } from "@spotify/web-api-ts-sdk";
 import { invoke } from "@tauri-apps/api";
 import { AlbumComponent, TrackTableView } from "./page_view";
 import { JomoNavigationContext } from "..";
@@ -54,7 +53,7 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
     <AppBar
       elevation={0}
       position="relative"
-      sx={{ background: "transparent" }}
+      sx={{ background: "transparent", width: "100%", overflowX: "hidden", height: search_result_view ? "100vh": "auto"}}
     >
       <Grid container columns={16} sx={{ margin: "0", padding: "4px 12px" }}>
         <Grid
@@ -87,16 +86,9 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
           </IconButton>
         </Grid>
         <Grid item xs={8} sx={{ padding: "2px 12px" }}>
-          <JomoAppSearch
-            disabled={loading ? true : false}
-            variant="outlined"
-            placeholder="Search"
-            sx={{
-              minWidth: "200px",
-              width: "60%",
-              "&:hover": { cursor: "pointer" },
-            }}
-            autoComplete="off"
+          <form
+            action="#"
+            method="post"
             onSubmit={async (e) => {
               e.preventDefault();
               // send the current search to the backend and wait for response
@@ -114,40 +106,52 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
                 console.log(error);
               }
             }}
-            onFocus={(e) => {
-              setResultViewOpen(true);
-            }}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment
-                  sx={{ "& :hover": { cursor: "pointer" } }}
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    // send the current search to the backend and wait for response
-                    setLoading(true);
-                    try {
-                      let search_result = await invoke<SearchResult>(
-                        "search_command",
-                        {
-                          q: search_query,
-                        }
-                      );
-                      setLoading(false);
-                      setSearchResult(search_result);
-                    } catch (error) {
-                      console.log(error);
-                    }
-                  }}
-                  position="start"
-                >
-                  <SearchRounded />
-                </InputAdornment>
-              ),
-            }}
-          />
+          >
+            <JomoAppSearch
+              disabled={loading ? true : false}
+              variant="outlined"
+              placeholder="Search"
+              sx={{
+                minWidth: "200px",
+                width: "60%",
+                "&:hover": { cursor: "pointer" },
+              }}
+              autoComplete="off"
+              onFocus={(e) => {
+                setResultViewOpen(true);
+              }}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment
+                    sx={{ "& :hover": { cursor: "pointer" } }}
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      // send the current search to the backend and wait for response
+                      setLoading(true);
+                      try {
+                        let search_result = await invoke<SearchResult>(
+                          "search_command",
+                          {
+                            q: search_query,
+                          }
+                        );
+                        setLoading(false);
+                        setSearchResult(search_result);
+                      } catch (error) {
+                        console.log(error);
+                      }
+                    }}
+                    position="start"
+                  >
+                    <SearchRounded />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </form>
         </Grid>
         <Grid
           item
@@ -174,7 +178,7 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
       </Grid>
       <Box
         display={search_result_view ? "block" : "none"}
-        sx={{ height: "90vh" }}
+        sx={{ height: "100vh" }}
       >
         <Box
           sx={{
@@ -229,7 +233,7 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
               setResultViewOpen(false);
             }
           }}
-          sx={{ marginTop: "24px" }}
+          sx={{ marginTop: "24px"}}
         >
           {search_view == "tracks" ? (
             search_result ? (
@@ -244,7 +248,7 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
               justifyContent={"space-evenly"}
               gap={".5rem"}
               rowGap={"1rem"}
-              sx={{ margin: "24px 6px", overflowY: "scroll", height: "600px" }}
+              sx={{ margin: "24px 6px", overflowY: "scroll", height: "100%" }}
             >
               {search_result?.albums.items.map((album, index) => (
                 <Grid item xs={8} md={4}>
@@ -278,7 +282,7 @@ const SearchTrackComponent: FC<SearchResultTracks> = ({ items }) => {
   return (
     <TableContainer
       sx={{
-        width: "100%",
+        width: "auto",
         maxHeight: "64vh",
         margin: "0 auto",
         position: "relative",
