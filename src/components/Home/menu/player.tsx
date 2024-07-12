@@ -121,52 +121,46 @@ const PlayerControls = (props: { duration: number | undefined }) => {
   const [shuffle, setShuffle] = useState(false);
 
   useEffect(() => {
-    let update_track = async () => {
+    let handle_position = async () => {
       try {
         // listen for the curren_playing emittion
         const unlisten = await appWindow.listen<string>(
-          "current-playing-changed",
+          "sink-position",
           (event) => {
-            let track = JSON.parse(event.payload) as Track;
-            if (track.id) {
-              setPosition(0);
-              // set the loading to true
-              setLoading(true);
-            }
-            console.log("Printing the event response", event.payload);
+            setPosition(parseInt(event.payload));
           }
         );
       } catch (error) {
         console.log(error);
       }
     };
-    let update_loading = async () => {
-      try {
-        // listen for the curren_playing emittion
-        const unlisten = await appWindow.listen<string>("loading", (event) => {
-          setLoading(false);
+    // let update_loading = async () => {
+    //   try {
+    //     // listen for the curren_playing emittion
+    //     const unlisten = await appWindow.listen<string>("loading", (event) => {
+    //       setLoading(false);
 
-          console.log("Printing the event response", event.payload);
-        });
-        unlisten();
-      } catch (error) {
-        console.log(error);
-      }
-    };
-    let update_position = async () => {
-      try {
-        console.log("Getting current position");
-        let unlisten = appWindow.listen<string>("current-position", (event) => {
-          console.log("Current posiiton as from backend => ", event.payload);
-          setPosition(parseInt(event.payload))
-        });
-      } catch (error) {
-        console.log(error);
-      }
-    }
-    update_track();
-    update_loading();
-    update_position();
+    //       console.log("Printing the event response", event.payload);
+    //     });
+    //     unlisten();
+    //   } catch (error) {
+    //     console.log(error);
+    //   }
+    // };
+    // let update_position = async () => {
+    //   try {
+    //     console.log("Getting current position");
+    //     let unlisten = appWindow.listen<string>("current-position", (event) => {
+    //       console.log("Current posiiton as from backend => ", event.payload);
+    //       // setPosition(parseInt(event.payload))
+    //     });
+    //   } catch (error) {
+    //     console.log(error);
+    //   }
+    // }
+    // update_track();
+    // update_loading();
+    handle_position();
   }, []);
 
   
@@ -178,14 +172,14 @@ const PlayerControls = (props: { duration: number | undefined }) => {
         playing &&
         position <= props.duration / 1000
       ) {
-        setPosition((prevPosition) => prevPosition + 1);
+        // setPosition((prevPosition) => prevPosition + 1);
         await appWindow.emit("set-position", position);
       } else if (
         props.duration &&
         position >= Math.floor(props.duration / 1000)
       ) {
         // Reset position to 0 when it reaches duration
-        setPosition(0);
+        // setPosition(0);
       }
     };
 
@@ -256,7 +250,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
           onClick={async () => {
             console.log("clicked previous");
             await appWindow.emit("next-previous");
-            setPosition(0);
+            // setPosition(0);
           }}
         >
           <SkipPrevious />
@@ -277,7 +271,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
             await appWindow.emit("next-previous", {
               message: "",
             });
-            setPosition(0);
+            // setPosition(0);
           }}
         >
           <SkipNextRounded />
@@ -312,7 +306,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
           onChange={async (_, value) => {
             // set the backend positon
             let e = await appWindow.emit("seek", value);
-            setPosition(value as number);
+            // setPosition(value as number);
           }}
           max={props.duration ? props.duration / 1000 : 0}
         />

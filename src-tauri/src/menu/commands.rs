@@ -6,7 +6,7 @@ use std::thread;
 use std::time::Duration;
 
 use crate::menu::auth_structures::{AuthCreds, MetaInfo};
-use crate::menu::utils::{generate_audio_path, simple_random, wait_read_file};
+use crate::menu::utils::{generate_audio_path, wait_read_file};
 use crate::{AppState, JomoQueue};
 
 use super::auth_structures::{Settings, SupportedApps, User};
@@ -18,6 +18,7 @@ use super::utils::{retrieve_code, run_ffmpeg_command};
 use anyhow::anyhow;
 use oauth2::reqwest::async_http_client;
 use oauth2::{AuthorizationCode, CsrfToken, PkceCodeChallenge, PkceCodeVerifier};
+use rand::Rng;
 use rodio::{Decoder, OutputStream, Sink};
 use rusty_ytdl::search::{SearchResult, YouTube};
 use rusty_ytdl::{Video, VideoOptions, VideoQuality, VideoSearchOptions};
@@ -503,7 +504,7 @@ pub fn play_queue(
 
     // Handles the state of the current queue position
     handle_position();
-    
+
     '_player_loop: loop {
         // Only if sink is playing should you try to play the next song
         if !sink.is_paused() && queue.read().expect("Failed to read").que_track.len() > 0 {
@@ -656,15 +657,14 @@ pub fn play_queue(
                 let cur_queue = queue.read().expect("Failed to read").clone();
 
                 let index = if *shuffle.read().expect("Failed to read") {
-                    cur_queue.head.unwrap().wrapping_add(simple_random())
-                        % cur_queue.que_track.len() as u32
+                   let mut rng = rand::thread_rng();
+                   rng.gen_range(0..cur_queue.que_track.len()-1)
                 } else {
-                    cur_queue.head.unwrap().wrapping_add(1) % cur_queue.que_track.len() as u32
+                    cur_queue.head.unwrap().wrapping_add(1) as usize % cur_queue.que_track.len()
                 };
-                queue.write().expect("Failed to write").head = Some(index);
+                queue.write().expect("Failed to write").head = Some(index as u32);
             }
         }
-        thread::sleep(Duration::from_secs(1));
     }
 }
 
