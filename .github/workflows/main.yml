@@ -66,11 +66,9 @@ jobs:
 
       - name: download and extract ffmpeg
         run: |
-          # Create a directory to store ffmpeg
           mkdir -p ./src-tauri/bin
           mkdir -p ffmpeg
           
-          # Download ffmpeg based on the platform
           if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
             curl -L -o ffmpeg.zip "${{ matrix.ffmpeg_url }}"
             unzip -o ffmpeg.zip -d ffmpeg
@@ -81,7 +79,17 @@ jobs:
             mv ffmpeg/ffmpeg ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}
             chmod +x ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}
           fi
+        shell: bash
 
+      - name: download and extract ffmpeg (windows)
+        if: matrix.platform == 'windows-latest'
+        run: |
+          New-Item -ItemType Directory -Force -Path ./src-tauri/bin
+          Invoke-WebRequest -Uri ${{ matrix.ffmpeg_url }} -OutFile ffmpeg.zip
+          Expand-Archive -Path ffmpeg.zip -DestinationPath ffmpeg -Force
+          Move-Item -Path ffmpeg/bin/ffmpeg.exe -Destination ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}.exe
+        shell: powershell
+        
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
