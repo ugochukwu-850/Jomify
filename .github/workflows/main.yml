@@ -83,7 +83,7 @@ jobs:
           Invoke-WebRequest -Uri ${{ matrix.ffmpeg_url }} -OutFile ffmpeg.7z
           & "C:\Program Files\7-Zip\7z.exe" x ffmpeg.7z -offmpeg
           Move-Item -Path ffmpeg\bin\ffmpeg.exe -Destination ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}.exe
-        shell: pwsh
+        shell: powershell
 
       - uses: tauri-apps/tauri-action@v0
         env:
