@@ -127,6 +127,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
         const unlisten = await appWindow.listen<string>(
           "sink-position",
           (event) => {
+            console.log("Sink current position: ", event.payload);
             setPosition(parseInt(event.payload));
           }
         );
@@ -200,19 +201,10 @@ const PlayerControls = (props: { duration: number | undefined }) => {
           "sink-playing-status",
           (event) => {
             try {
-              let status = JSON.parse(event.payload) as PlayingAction;
+              let status: boolean = JSON.parse(event.payload);
               console.log("Playing data now", status);
+              setPlaying(status);
 
-              if (status.playing) {
-                setPlaying(true);
-              } else if (status.playing === false) {
-                setPlaying(false);
-              }
-
-              console.log(
-                "Printing the event response of playing",
-                event.payload
-              );
             } catch (error) {
               console.error("Failed to parse JSON payload:", error);
             }
@@ -240,7 +232,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
             }
           }}
         >
-          {shuffle ? (
+          {!shuffle ? (
             <List />
           ) : (
             <Shuffle sx={{ color: shuffle ? "green" : "white" }} />
@@ -306,7 +298,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
           onChange={async (_, value) => {
             // set the backend positon
             let e = await appWindow.emit("seek", value);
-            // setPosition(value as number);
+            setPosition(value as number);
           }}
           max={props.duration ? props.duration / 1000 : 0}
         />

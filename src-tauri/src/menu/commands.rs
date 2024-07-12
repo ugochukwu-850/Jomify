@@ -22,7 +22,6 @@ use rand::Rng;
 use rodio::{Decoder, OutputStream, Sink};
 use rusty_ytdl::search::{SearchResult, YouTube};
 use rusty_ytdl::{Video, VideoOptions, VideoQuality, VideoSearchOptions};
-use serde_json::json;
 use tauri::api::notification::Notification;
 use tauri::{command, Manager, Window};
 
@@ -341,19 +340,19 @@ pub fn play_queue(
     // toggle the play state
     let toggle_play = || {
         let sink2 = sink.clone();
-        let window1 = window.clone();
+        // let window1 = window.clone();
         window.listen("toggle-play", move |_| {
             if sink2.is_paused() {
                 sink2.play();
             } else {
                 sink2.pause()
             }
-            window1
-                .emit(
-                    "sink-playing-status",
-                    json!({"playing": !sink2.is_paused()}).to_string(),
-                )
-                .expect("Failed to run event");
+            // window1
+            //     .emit(
+            //         "sink-playing-status",
+            //         !sink2.is_paused(),
+            //     )
+            //     .expect("Failed to run event");
             println!("Just toggled sink status => Playing {}", sink2.is_paused())
         });
     };
@@ -400,29 +399,27 @@ pub fn play_queue(
     let next_and_previous = || {
         let next_sink = sink.clone();
         let next_queue = queue.clone();
+        let h_window = window.clone();
         window.listen("next-previous", move |event| {
-            let current_head = next_queue.read().expect("Failed to read next").head;
-            if event.payload().is_some() {
-                if let Some(head) = current_head {
-                    let len = next_queue.read().expect("read failed").que_track.len() as u32;
-                    let mut write_lock = next_queue.write().expect("Failed to write");
-                    write_lock.head = Some(head.wrapping_add(1) % len);
-                    next_sink.stop();
+            let mut next_queue_gaurd = next_queue.write().expect("Failed to read next");
+            let current_head = next_queue_gaurd.head;
+            let len = next_queue_gaurd.que_track.len() as u32;
+            if let Some(head) = current_head {
+                if event.payload().is_some() {
+                    if let Some(head) = current_head {
+                        next_queue_gaurd.head = Some(head.wrapping_add(1) % len);
+                    }
+                } else {
+                    next_queue_gaurd.head = Some(head.wrapping_sub(1) % len);
                 }
-            } else {
-                if let Some(head) = current_head {
-                    let len = next_queue.read().expect("read failed").que_track.len() as u32;
-                    let mut write_lock = next_queue.write().expect("Failed to write");
-                    // because ones the sink is stoped it automatically updates the head by one ; Make the countback twice
-                    write_lock.head = Some((head.wrapping_sub(1)) % len); // Use wrapping_sub to avoid negative values
-                    next_sink.stop();
-                }
+                println!(
+                    "Just toggled sink status => Playing {}",
+                    next_sink.is_paused()
+                );
+                next_sink.play();
+                next_sink.stop();
+                let _ = h_window.trigger("set-position", None);
             }
-            println!(
-                "Just toggled sink status => Playing {}",
-                next_sink.is_paused()
-            );
-            next_sink.play();
         });
     };
 
@@ -453,28 +450,68 @@ pub fn play_queue(
                 .expect("Failed to read the repeat")
                 .clone();
             *shuffle_clone.write().expect("Failed to write lock repeat") = !shuffle;
+            println!(
+                "Tuggled shuffle, {}",
+                *shuffle_clone.read().expect("Failed to read")
+            )
         });
     };
 
     let handle_position = || {
         let sink = sink.clone();
         let position = Arc::new(Mutex::new(0));
-        let r_pos = position.clone();
+        let pos = position.clone();
+        let pos2 = position.clone();
         let window = window.clone();
 
-        window.listen("current-playing-changed", move |_| {
-            *r_pos.lock().expect("Failed to lock") = 0;
+        window.clone().listen("set-position", move |_| {
+            let mut position_guard = pos.lock().expect("Failed to lock");
+            *position_guard = 0;
         });
 
-        // Start main loop
-        '_main_loop: {
-            if !sink.is_paused() {
-                let mut position_guard = position.lock().expect("Failed to lock");
-                *position_guard += 1;
-                let _ = window.emit("sink-position", *position_guard);
-                thread::sleep(Duration::from_secs_f32(0.9999))
+        window.clone().listen("seek", move |event| {
+            let seconds = if let Some(e) = event.payload() {
+                e.parse::<i32>().unwrap_or(1)
+            } else {
+                0
+            };
+            let mut position_guard = pos2.lock().expect("Failed to lock");
+            *position_guard = seconds;
+        });
+
+        tauri::async_runtime::spawn({
+            let position = Arc::clone(&position);
+            let window = window.clone();
+
+            async move {
+                loop {
+                    if !sink.is_paused() {
+                        let mut position_guard = match position.lock() {
+                            Ok(guard) => guard,
+                            Err(poisoned) => {
+                                eprintln!("Lock poisoned: {:?}", poisoned);
+                                break; // Exiting loop on poisoned lock
+                            }
+                        };
+
+                        *position_guard += 1;
+                        if let Err(e) = window.emit("sink-position", *position_guard) {
+                            eprintln!("Failed to emit 'sink-position': {:?}", e);
+                        }
+                        if let Err(e) = window.emit("sink-playing-status", !sink.is_paused()) {
+                            eprintln!("Failed to emit 'sink-playing-status': {:?}", e);
+                        }
+                        drop(position_guard);
+                        thread::sleep(Duration::from_secs_f32(0.9999));
+                    } else {
+                        thread::sleep(Duration::from_micros(100));
+                        if let Err(e) = window.emit("sink-playing-status", !sink.is_paused()) {
+                            eprintln!("Failed to emit 'sink-playing-status': {:?}", e);
+                        }
+                    }
+                }
             }
-        }
+        });
     };
 
     // Event handler: toggle play
@@ -601,16 +638,15 @@ pub fn play_queue(
                 )
                 .expect("Failed to emit message");
 
-            let _ = window.emit(
-                "sink-playing-status",
-                json!({"playing": !sink.is_paused()}).to_string(),
-            );
+            // let _ = window.emit(
+            //     "sink-playing-status",
+            //     !sink.is_paused(),
+            // );
             'recurse_get_file: for x in 0..20 {
                 // if the queue has changed or the file is found break out of loop
                 if queue.read().expect("Head failed to wait").head.unwrap() != before_wait_head
                     || file.is_some()
                 {
-                    thread::sleep(Duration::from_secs(2));
                     break 'recurse_get_file;
                 }
                 // try to get the file
@@ -647,6 +683,7 @@ pub fn play_queue(
                 sink.play();
 
                 sink.sleep_until_end();
+                let _ = window.trigger("set-position", None);
             }
 
             let cur_head = queue.read().expect("Failed to read").head.clone().unwrap();
@@ -654,15 +691,19 @@ pub fn play_queue(
                 if *repeat.read().expect("Failed to read repeat") {
                     continue;
                 }
-                let cur_queue = queue.read().expect("Failed to read").clone();
+                let mut cur_queue_guard = queue.write().expect("Failed to read");
+                let cur_queue = cur_queue_guard.clone();
 
                 let index = if *shuffle.read().expect("Failed to read") {
-                   let mut rng = rand::thread_rng();
-                   rng.gen_range(0..cur_queue.que_track.len()-1)
+                    let mut rng = rand::thread_rng();
+                    let index = rng.gen_range(0..cur_queue.que_track.len() - 1);
+                    println!("Generated random index: {}", index);
+                    index
                 } else {
-                    cur_queue.head.unwrap().wrapping_add(1) as usize % cur_queue.que_track.len()
+                    let ind = cur_queue.head.unwrap();
+                    ind.wrapping_add(1) as usize % cur_queue.que_track.len()
                 };
-                queue.write().expect("Failed to write").head = Some(index as u32);
+                cur_queue_guard.head = Some(index as u32);
             }
         }
     }

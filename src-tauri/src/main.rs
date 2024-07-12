@@ -208,7 +208,7 @@ fn main() {
                 // save to db and exit successfully
                 match state.save_to_db(&db) {
                     Ok(former) => {
-                        println!("Saved succesffuly ; this was the former \n {:?}", former)
+                        println!("Saved succesffuly ;  \n Former len {:?} ", former.user);
                     }
                     Err(_) => println!("Something wrong happened ; Failed to save state to db"),
                 }
