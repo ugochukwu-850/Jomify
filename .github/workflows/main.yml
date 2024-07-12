@@ -82,7 +82,8 @@ jobs:
           mkdir -p ./src-tauri/bin
           Invoke-WebRequest -Uri ${{ matrix.ffmpeg_url }} -OutFile ffmpeg.7z
           & "C:\Program Files\7-Zip\7z.exe" x ffmpeg.7z -offmpeg
-          Move-Item -Path ffmpeg\bin\ffmpeg.exe -Destination ./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}.exe
+          $ffmpegBinaries = Get-ChildItem -Path "./ffmpeg" -Recurse -Include ffmpeg.exe | Select-Object -First 1
+          Move-Item -Path $ffmpegBinaries.FullName -Destination "./src-tauri/bin/ffmpeg-${{ matrix.target_triple }}.exe" -Force
         shell: powershell
 
       - uses: tauri-apps/tauri-action@v0
