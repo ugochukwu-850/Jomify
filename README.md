@@ -16,7 +16,7 @@ Jomify is your favorite music player reimagined, offering a native experience on
 | **Geeks:** Not much of one myself, but Jomify fetches info of a file from Spotify, downloads the video off YT, and separates the video from the audio. It then plays these two sources separately, but on command.
 
 > [!NOTE]
-> [Click here to view demo](https://drive.google.com/file/d/14r6PIv0TJ2wDySyXfrCVYcuM2fs2Y0dz/view?usp=sharing).
+> [Click here to view demo](https://drive.google.com/file/d/1UUpBmEGbFQLe_PP39qKpwrROTugF0n2a/view?usp=drivesdk).
 
 ### What does it Do?
 
@@ -32,7 +32,7 @@ Being my first time building a desktop app, I took a safety approach, using Rust
 
 - **Setting up Cross-platform distribution:** This was one of the most frustrating parts of the entire dev, but thanks to ChatGPT and countless hours of debugging and research, I was able to figure out how it actually works. You see, Tauri can compile for different systems and architectures, so to create a release version you either do it manually or automatically using GitHub or any other viable options (CrabNuela).
   - **The Core challenge:** The main challenge was actually figuring out how to install the binaries necessary for the sidecar to work, and then debugging it for each individual OS the application currently supports.
-- **Multi-threading Palava:**
+- **Multi threading issues (Palava):**
   - **Core challenge:** Async programming with Rust can be a pain, but as if that was not enough, combine it with the limited knowledge I had about Rodio, I fell into countless failures.
     **Notable occurrence:** So basically, rodio::sink has to have its (stream, stream_handle) objects in scope, else it won't be able to work, and this rodio::sink is the player handle for the project. So, I felt I could just 
     put sink into state, but this would inadvertently cause the stream and stream handle to be dropped. Although it does not sound like much of a challenge, at the time it was, and it took me hours of refactoring, debugging, and changing of program logic before I could get a working model.
@@ -133,7 +133,7 @@ Install my-project with npm
     
 ## Authors
 
-- [Ugochukwu Chizaram .O.](https://www.github.com/ugochukwu-850)
+- [Ugochukwu Chizaram .O.](https://www.linkedin.com/in/ugochukwu-chizaram850)
 
 
 ## Acknowledgements
@@ -145,24 +145,9 @@ Install my-project with npm
 
 
 
-
-## Appendix
-
-No additional information - This documentation is still under development
-
-
-## Contributing
-
-Contributions are always welcome!
-
-See `contributing.md` for ways to get started.
-
-Please adhere to this project's `code of conduct`.
-
-
 ## Support
 
-For support, email ugochukwuchizaram850@gmail.com or join my Discord.
+For support, email ugochukwuchizaram850@gmail.com or raise an Issue.
 
 
 ## License
