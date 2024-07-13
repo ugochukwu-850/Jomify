@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "Jomify",
-    "version": "0.1.0"
+    "version": "0.1.1"
   },
   "tauri": {
     "allowlist": {
@@ -48,6 +48,7 @@
       "targets": "all",
       "identifier": "com.tauri.prod",
       "category": "Music",
+      "shortDescription": "Music Streaming and Download App",
       "publisher": "Ugochukwu Chizaram",
       "externalBin": ["bin/ffmpeg"],
       "icon": [
