@@ -35,6 +35,28 @@ Jomify is your favorite music player reimagined, offering a native experience on
 - [ ]  Alot More
 
 
+## Usage 
+Since the app is not yet verified by spotify, you cannot just log in with your spotify ID
+Instead i have created a free account where you can log in as the user and access our app
+
+**Follow these steps to test the app as a beta User**
+1. Download your systems executables or installation files from the release page 
+
+2. Install and launch
+
+3. On Logging screen -> Click log in with spotify
+
+4. Use this details to login with spotify on the spotify auth page
+   - email: megumifushigiro850@gmail.com
+   - password: #jomobetauser
+
+5. You should be taken back to the home page.
+ps: Your default feed may be tailored to Nigeria but this is because the props account is created with Local_ as Nigeria.
+
+6. You can save this login in details incase of subsequent authentication
+
+**Ps:** If you want to experience the app as with your personal spotify account , you can message me to add you to the beta users.
+
 
 
 
