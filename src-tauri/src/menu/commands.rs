@@ -305,7 +305,6 @@ pub async fn process_queue(
                     continue;
                 }
 
-                
                 _ = std::fs::write(&video_path, total_bytes).expect("Failed to save video");
                 match run_ffmpeg_command(
                     window.clone(),
@@ -485,40 +484,41 @@ pub fn play_queue(
             *position_guard = seconds;
         });
 
-        tauri::async_runtime::spawn({
-            let position = Arc::clone(&position);
-            let window = window.clone();
+        tauri::async_runtime::spawn(async move {
+            println!("Currently running inside the move");
+            loop {
+                if !sink.is_paused() {
+                    let mut position_guard = match position.lock() {
+                        Ok(guard) => guard,
+                        Err(poisoned) => {
+                            eprintln!("Lock poisoned: {:?}", poisoned);
+                            break; // Exiting loop on poisoned lock
+                        }
+                    };
 
-            async move {
-                loop {
-                    if !sink.is_paused() {
-                        let mut position_guard = match position.lock() {
-                            Ok(guard) => guard,
-                            Err(poisoned) => {
-                                eprintln!("Lock poisoned: {:?}", poisoned);
-                                break; // Exiting loop on poisoned lock
-                            }
-                        };
-
-                        *position_guard += 1;
-                        if let Err(e) = window.emit("sink-position", *position_guard) {
-                            eprintln!("Failed to emit 'sink-position': {:?}", e);
-                        }
-                        if let Err(e) = window.emit("sink-playing-status", !sink.is_paused()) {
-                            eprintln!("Failed to emit 'sink-playing-status': {:?}", e);
-                        }
-                        drop(position_guard);
-                        thread::sleep(Duration::from_secs_f32(0.9999));
-                    } else {
-                        thread::sleep(Duration::from_micros(100));
-                        if let Err(e) = window.emit("sink-playing-status", !sink.is_paused()) {
-                            eprintln!("Failed to emit 'sink-playing-status': {:?}", e);
-                        }
+                    *position_guard += 1;
+                    if let Err(e) = window.emit("sink-position", *position_guard) {
+                        eprintln!("Failed to emit 'sink-position': {:?}", e);
+                    }
+                    if let Err(e) = window.emit("sink-playing-status", !sink.is_paused()) {
+                        eprintln!("Failed to emit 'sink-playing-status': {:?}", e);
+                    }
+                    drop(position_guard);
+                    thread::sleep(Duration::from_secs_f32(0.9999));
+                } else {
+                    thread::sleep(Duration::from_micros(100));
+                    if let Err(e) = window.emit("sink-playing-status", !sink.is_paused()) {
+                        eprintln!("Failed to emit 'sink-playing-status': {:?}", e);
                     }
                 }
             }
         });
+
+        println!("Could still run after the spaen \n");
     };
+
+    // Handles the state of the current queue position
+    handle_position();
 
     // Event handler: toggle play
     toggle_play();
@@ -544,9 +544,6 @@ pub fn play_queue(
 
     //Event handler: toggles queue playback shuffle state
     toggle_shuffle();
-
-    // Handles the state of the current queue position
-    handle_position();
 
     '_player_loop: loop {
         // Only if sink is playing should you try to play the next song
@@ -702,7 +699,7 @@ pub fn play_queue(
 
                 let index = if *shuffle.read().expect("Failed to read") {
                     let mut rng = rand::thread_rng();
-                    let index = rng.gen_range(0..cur_queue.que_track.len() - 1);
+                    let index = rng.gen_range(0..cur_queue.que_track.len());
                     println!("Generated random index: {}", index);
                     index
                 } else {
