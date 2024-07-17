@@ -134,6 +134,7 @@ interface Followers {
 }
 
 export interface JomoNavigation {
+  refresh(new_nav: JomoNavigation): Promise<JomoNavigation>;
   previous: null | JomoNavigation;
   next: null | JomoNavigation;
   data: DefaultObjectPage | null

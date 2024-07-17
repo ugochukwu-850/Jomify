@@ -88,7 +88,7 @@ const DetailPageView: FC<PageProps> = ({ page }) => {
 
   useEffect(() => {
     console.log("Running get tracks effect");
-    const getTracks = async () => {
+    const get_data = async () => {
       try {
         console.log("Attempting to get tracks", page?.context);
         if (!page?.context?.length) {
@@ -130,7 +130,7 @@ const DetailPageView: FC<PageProps> = ({ page }) => {
         console.log(error);
       }
     };
-    getTracks();
+    get_data();
     isDonwloaded();
   }, [page]);
 

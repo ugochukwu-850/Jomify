@@ -58,16 +58,19 @@ const Home = () => {
   } as JomoNavigation);
   let [queue_visible, setQueueVisible] = useState(true);
   let [refresh, setRefresh] = useState(0);
-  
-  // document.addEventListener("keydown", function (event) {
-  //   if ((((event.ctrlKey || event.metaKey) && event.key === "r") || (event.key === "F5")) && !nav.data) {
-  //     event.preventDefault();
-  //     event.stopPropagation();
-  //     console.log("Refresh prevented (Ctrl+R or Cmd+R)");
-  //     setRefresh((prev) => prev + 1);
-  //   }
-    
-  // });
+
+  document.addEventListener("keydown", function (event) {
+    if (
+      (((event.ctrlKey || event.metaKey) && event.key === "r") ||
+        event.key === "F5") &&
+      !nav.data
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+      console.log("Refresh prevented (Ctrl+R or Cmd+R)");
+      setRefresh((prev) => prev + 1);
+    }
+  });
 
   useEffect(() => {
     let populate = async () => {
@@ -79,7 +82,16 @@ const Home = () => {
         console.log(error);
       }
     };
-    populate();
+    let run = async () => {
+      if (nav.data == null) {
+        populate();
+      } else {
+        // nav.populate
+        let refreshed = await nav.refresh(nav);
+        setNav(refreshed);
+      }
+    };
+    run();
   }, [refresh]);
 
   return (
