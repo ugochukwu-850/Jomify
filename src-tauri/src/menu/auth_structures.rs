@@ -91,17 +91,16 @@ impl User {
     pub async fn get_auth_creds(
         &mut self,
     ) -> Result<AuthCreds, MyError> {
-        match self.app {
+        match &mut self.app {
             SupportedApps::Spotify => {
-                let auth_cred = &self.auth_creds;
-                let auth_cred = self.refresh(auth_cred).await?;
-                self.auth_creds = auth_cred.clone();
+                let auth_cred = self.refresh().await?;
                 Ok(auth_cred)
             }
         }
     }
 
-    async fn refresh(&self, creds: &AuthCreds) -> Result<AuthCreds, MyError> {
+    async fn refresh(&mut self) -> Result<AuthCreds, MyError> {
+        let creds = &self.auth_creds;
         match self.app {
             SupportedApps::Spotify => {
                 if creds.expires_at > chrono::Utc::now().timestamp() {
@@ -109,7 +108,7 @@ impl User {
                 }
 
                 let client = reqwest::Client::new();
-                let uri = self
+                let app = self
                     .app
                     .generate_endpoints(Some(self.meta.client_id.to_owned()));
                 let token = creds.refresh_token.as_ref().unwrap();
@@ -121,7 +120,7 @@ impl User {
                     ("grant_type", grant_type),
                 ]);
 
-                let res = client.post(uri.token_url).form(&params).send().await;
+                let res = client.post(app.token_url).form(&params).send().await;
 
                 match res {
                     Ok(response) => {
@@ -129,6 +128,8 @@ impl User {
                             let response = response.text().await?;
                             let mut auth_creds: AuthCreds = serde_json::from_str(&response)?;
                             auth_creds.validate();
+                            // update the user state to have the creds in it 
+                            self.auth_creds = auth_creds.clone();
                             return Ok(auth_creds);
                         }
 
