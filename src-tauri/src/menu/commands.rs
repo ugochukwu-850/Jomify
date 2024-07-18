@@ -673,9 +673,11 @@ pub fn play_queue(
                 // // emit that the current playing is now not loading
                 // let _ = window.emit("loading", "false");
                 if let Some(source_duration) = source.total_duration() {
-                    track.duration_ms = source_duration.as_secs() as u128;
+                    let duration = source_duration.as_millis() as u128;
+                    println!("duration from source : {}", duration);
+                    track.duration_ms = duration;
                 }
-                
+
                 // Append the new source file
                 println!("Appending source to play it");
                 sink.append(source);
