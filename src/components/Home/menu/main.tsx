@@ -9,17 +9,29 @@ import {
 import { FC, useContext, useEffect, useState } from "react";
 import DetailPageView from "./page_view";
 import nextPage from "../../../util";
+import { GlobalState } from "../../../App";
+import AuthPage from "../../AuthHome/main";
+import { JomoNavigationContext } from "..";
 interface mainProp {
-  props: HomeResponse | null;
-  nav: JomoNavigation,
-  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>
+  props: HomeResponse | undefined;
 }
 
-const Main: FC<mainProp> = ({ props, nav, setNav}): JSX.Element => {
-  if (props == null) {
+const Main: FC<mainProp> = ({ props }): JSX.Element => {
+  let nav_context = useContext(JomoNavigationContext);
+  if (nav_context) {
+    nav_context;
+  } else {
     return <></>;
   }
-  return (
+  let { nav, setNav } = nav_context;
+  let app_state = useContext(GlobalState);
+
+  if (app_state == undefined) {
+    return <></>;
+  }
+
+  let { global_state } = app_state;
+  return global_state.logged_in ? (
     <Box
       sx={{
         background:
@@ -35,21 +47,27 @@ const Main: FC<mainProp> = ({ props, nav, setNav}): JSX.Element => {
     >
       <JomoAppBar nav={nav} setNav={setNav} />
 
-      <Box sx={{ overflowY: "scroll", padding: "12px" }}>
+      <Box sx={{ padding: "12px", overflowY: "scroll"}}>
         {!nav.data ? (
           <>
             <FeaturedPlaylist
-              data={props.featured_playlists}
+              data={props ? props.featured_playlists : null}
               setNav={setNav}
               nav={nav}
             />
-            <MainPlaylistDiver data={props.gallery} setNav={setNav} nav={nav} />
+            <MainPlaylistDiver
+              data={props ? props.gallery : null}
+              setNav={setNav}
+              nav={nav}
+            />
           </>
         ) : (
-          <DetailPageView page={nav.data}/>
+          <DetailPageView page={nav.data} />
         )}
       </Box>
     </Box>
+  ) : (
+    <AuthPage />
   );
 };
 

@@ -4,25 +4,31 @@ import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 import "./App.scss";
 import AuthPage from "./components/AuthHome/main";
-import { useEffect, useState } from "react";
+import { createContext, useEffect, useState } from "react";
 
 import { StyledEngineProvider } from "@mui/material";
 
 import { invoke } from "@tauri-apps/api/tauri";
 import Home from "./components/Home";
 import { appWindow } from "@tauri-apps/api/window";
+import { GlobalStateContext, GlobalStateContextController } from "./types";
 
+export const GlobalState = createContext<
+  GlobalStateContextController | undefined
+>(undefined);
 function App() {
-  const [loggedIn, setLoggedIn] = useState<boolean | null>(null);
+  const [global_state, setGlobalState] = useState<GlobalStateContext>({
+    logged_in: false,
+  });
 
   useEffect(() => {
     let run_auth_status = async () => {
       try {
         let loginStatus: boolean = await invoke("is_authenticated");
         console.log("Login statys", loginStatus);
-        setLoggedIn(loginStatus);
+        setGlobalState({ ...global_state, logged_in: loginStatus });
       } catch (error) {
-        setLoggedIn(false);
+        setGlobalState({ ...global_state, logged_in: false });
         console.log(error);
       }
     };
@@ -38,35 +44,32 @@ function App() {
       try {
         console.log("Waiting for any user log update");
 
-        let unlisten = await appWindow.listen<string>("authentication", (event) => {
-          console.log(event.payload);
-          if (event.payload == "loggedIn") {
-            setLoggedIn(true);
-          } else if (event.payload == "loggedOut") {
-            setLoggedIn(false);
+        let unlisten = await appWindow.listen<string>(
+          "authentication",
+          (event) => {
+            console.log(event.payload);
+            if (event.payload == "loggedIn") {
+              setGlobalState({ ...global_state, logged_in: true });
+            } else if (event.payload == "loggedOut") {
+              setGlobalState({ ...global_state, logged_in: false });
+            }
           }
-        });
+        );
       } catch (error) {
         console.log(error);
       }
     };
-    
+
     StateLessAuthenticationCheck();
   }, []);
 
-  console.log(loggedIn);
-
-  if (loggedIn) {
-    return (
-      <StyledEngineProvider injectFirst>
+  return (
+    <StyledEngineProvider injectFirst>
+      <GlobalState.Provider value={{ global_state, setGlobalState }}>
         <Home />
-      </StyledEngineProvider>
-    );
-  } else if (loggedIn == null) {
-    return <></>;
-  } else {
-    return <AuthPage />;
-  }
+      </GlobalState.Provider>
+    </StyledEngineProvider>
+  );
 }
 
 export default App;

@@ -140,6 +140,16 @@ export interface JomoNavigation {
   data: DefaultObjectPage | null
 }
 
+export interface GlobalStateContext {
+  logged_in: boolean,
+  user_info?: User
+} 
+
+export interface GlobalStateContextController {
+  setGlobalState: React.Dispatch<React.SetStateAction<GlobalStateContext>>,
+  global_state: GlobalStateContext,
+}
+
 export interface JomoNavigationContextShape {
   setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>,
   nav: JomoNavigation,

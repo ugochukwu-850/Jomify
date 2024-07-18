@@ -43,6 +43,8 @@ import {
 } from "@mui/icons-material";
 import { appWindow } from "@tauri-apps/api/window";
 import nextPage, { generate_artist_page, play_tracks } from "../../util";
+import { GlobalState } from "../../App";
+import AuthPage from "../AuthHome/main";
 // const RightSideMenuContext = createContext<null | QueueMenuContext>(null);
 const JomoNavigationContext = createContext<
   JomoNavigationContextShape | undefined
@@ -50,7 +52,7 @@ const JomoNavigationContext = createContext<
 
 const Home = () => {
   console.log("Running Home effect");
-  let [homeData, setHomeData] = useState<HomeResponse | null>(null);
+  let [homeData, setHomeData] = useState<HomeResponse | undefined>(undefined);
   let [nav, setNav] = useState({
     previous: null,
     next: null,
@@ -58,7 +60,12 @@ const Home = () => {
   } as JomoNavigation);
   let [queue_visible, setQueueVisible] = useState(true);
   let [refresh, setRefresh] = useState(0);
+  let app_state = useContext(GlobalState);
 
+  if (app_state == undefined) {
+    return <></>;
+  }
+  let { global_state } = app_state;
   document.addEventListener("keydown", function (event) {
     if (
       (((event.ctrlKey || event.metaKey) && event.key === "r") ||
@@ -92,7 +99,7 @@ const Home = () => {
       }
     };
     run();
-  }, [refresh]);
+  }, [refresh, global_state.logged_in]);
 
   return (
     <ThemeProvider theme={homeTheme}>
@@ -142,7 +149,7 @@ const Home = () => {
               height={"100%"}
               sx={{ overflow: "hidden" }}
             >
-              <Main props={homeData} nav={nav} setNav={setNav} />
+              <Main props={homeData} />
             </Grid>
             <QueueComponent />
           </Grid>
@@ -429,7 +436,7 @@ const QueueComponent = () => {
                   }
                 }}
               >
-                <RemoveSharp fontSize="small" />
+                <RemoveSharp fontSize="medium" />
               </ListItemIcon>
             </ListItem>
           ))}
