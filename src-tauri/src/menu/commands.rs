@@ -19,7 +19,7 @@ use anyhow::anyhow;
 use oauth2::reqwest::async_http_client;
 use oauth2::{AuthorizationCode, CsrfToken, PkceCodeChallenge, PkceCodeVerifier};
 use rand::Rng;
-use rodio::{Decoder, OutputStream, Sink};
+use rodio::{Decoder, OutputStream, Sink, Source};
 use rusty_ytdl::search::{SearchResult, YouTube};
 use rusty_ytdl::{Video, VideoOptions, VideoQuality, VideoSearchOptions};
 use tauri::api::notification::Notification;
@@ -600,7 +600,7 @@ pub fn play_queue(
             let before_wait_head = queue.read().expect("Failed to read").head.clone().unwrap();
             let mut file = None;
             // emit the current-playing-changed
-            let track = Track {
+            let mut track = Track {
                 album,
                 artists,
                 name,
@@ -633,13 +633,6 @@ pub fn play_queue(
                     window.trigger("process-tracks", Some(e));
                 }
             }
-
-            window
-                .emit(
-                    "current-playing-changed",
-                    serde_json::to_string(&track).expect("Failed to parse"),
-                )
-                .expect("Failed to emit message");
 
             // let _ = window.emit(
             //     "sink-playing-status",
@@ -676,12 +669,23 @@ pub fn play_queue(
                 };
                 // stop the current sink or empty it
                 sink.stop();
+
+                // // emit that the current playing is now not loading
+                // let _ = window.emit("loading", "false");
+                if let Some(source_duration) = source.total_duration() {
+                    track.duration_ms = source_duration.as_secs() as u128;
+                }
+                
                 // Append the new source file
                 println!("Appending source to play it");
                 sink.append(source);
 
-                // emit that the current playing is now not loading
-                let _ = window.emit("loading", "false");
+                window
+                    .emit(
+                        "current-playing-changed",
+                        serde_json::to_string(&track).expect("Failed to parse"),
+                    )
+                    .expect("Failed to emit message");
 
                 sink.play();
 
