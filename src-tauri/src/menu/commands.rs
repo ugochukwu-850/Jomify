@@ -50,16 +50,6 @@ pub async fn sign_in(
         .set_pkce_challenge(pkce_challenge)
         .url();
 
-    // save the csrf token in state and also save the pcke verifier in state
-    // let _ = db.insert("verifier", serde_json::to_vec(&pkce_verifier.secret())?)?;
-    // let _ = db.insert("csrf_token", serde_json::to_vec(&csrf_token.secret())?)?;
-
-    // // save the client in state
-    // let _ = db.insert(
-    //     "auth_client_id",
-    //     serde_json::to_vec(&client.client_id().to_string())?,
-    // )?;
-    // let _ = db.insert("app_name", serde_json::to_vec(&app.name())?)?;
 
     // start the listner
     println!("Generated authorization url and started waiting for reciever");
@@ -988,4 +978,17 @@ pub async fn search_command(
     Err(anyhow::anyhow!(
         "Error could not find the user and therefore could not get artist cause error occuredd"
     ))?
+}
+
+
+#[command]
+pub async fn get_user_display_name(window: Window) -> Result<String, MyError> {
+    let state = window.state::<AppState>();
+    let user = state.user.lock().await;
+    if let Some(user) = user.as_ref() {
+        let display_name = user.profile.display_name.clone().unwrap_or_else(|| "Anonymous".to_string());
+        return Ok(display_name);
+    };
+
+    return Err(MyError::Custom("Attempt to et display name of current user failed".to_string()))
 }

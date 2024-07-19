@@ -219,8 +219,15 @@ pub struct TrackItemsDetails {
 pub struct SearchResult {
     pub tracks: SearchResultTracks,
     pub artists: SearchResultArtists,
-    pub albums: SearchResultAlbums
+    pub albums: SearchResultAlbums,
+    pub playlists: SearchResultPlaylists
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SearchResultPlaylists {
+    pub items: Vec<SimpleifiedPlaylistItem> 
+}
+
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SearchResultAlbums {

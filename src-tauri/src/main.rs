@@ -14,6 +14,8 @@ use serde::{Deserialize, Serialize};
 use tauri::{api::path::app_data_dir, Manager, WindowEvent};
 
 pub mod menu;
+#[allow(non_snake_case)]
+pub mod schema;
 use std::sync::Arc;
 use tauri::async_runtime::Mutex;
 
@@ -189,7 +191,8 @@ fn main() {
             menu::commands::play_next,
             menu::commands::get_head,
             menu::commands::get_queue,
-            menu::commands::search_command
+            menu::commands::search_command,
+            menu::commands::get_user_display_name
         ])
         .on_window_event(|event| {
             // create a handler closure for default exit and save protocol

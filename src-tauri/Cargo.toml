@@ -24,6 +24,7 @@ rodio = "0.18.1"
 rand = "0.8.5"
 rusty_ytdl = "0.7.3"
 diesel = { version = "2.2.1", features = ["sqlite"] }
+dotenvy = "0.15.7"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

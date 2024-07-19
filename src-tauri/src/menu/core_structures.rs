@@ -16,7 +16,7 @@ use super::{
 pub struct HomeResponse {
     pub gallery: Vec<DefaultObjectsPreview>,
     pub featured_playlists: Vec<DefaultObjectsPreview>,
-    albums: Option<Vec<DefaultObjectsPreview>>,
+    pub new_release_album: Option<Vec<AlbumItem>>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -70,7 +70,7 @@ impl HomeResponse {
         let NewReleaseAlbumResponse {
             albums: Albums { items, total: _ },
         } = Self::get_new_release_albums(&access_token).await?;
-
+        let new_albums_field = items[..20].to_vec();
         // convert the album to displayable type
         let new_albums: Vec<DefaultObjectsPreview> = items
             .into_iter()
@@ -106,7 +106,7 @@ impl HomeResponse {
         Ok(Self {
             gallery,
             featured_playlists,
-            albums: None,
+            new_release_album: Some(new_albums_field),
         })
     }
 
@@ -114,7 +114,7 @@ impl HomeResponse {
         access_token: &String,
     ) -> Result<FeaturedPlaylistRequest, MyError> {
         let r_client = Client::new();
-        let queries = [("offset", "0"), ("limit", "20")];
+        let queries = [("offset", "0"), ("limit", "50")];
 
         match r_client
             .get("https://api.spotify.com/v1/browse/featured-playlists")
@@ -153,7 +153,7 @@ impl HomeResponse {
         access_token: &String,
     ) -> Result<NewReleaseAlbumResponse, MyError> {
         let r_client = Client::new();
-        let queries = [("offset", "0"), ("limit", "20")];
+        let queries = [("offset", "0"), ("limit", "50")];
 
         match r_client
             .get("https://api.spotify.com/v1/browse/new-releases")
