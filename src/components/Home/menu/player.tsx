@@ -127,7 +127,6 @@ const PlayerControls = (props: { duration: number | undefined }) => {
         const unlisten = await appWindow.listen<string>(
           "sink-position",
           (event) => {
-            console.log("Sink current position: ", event.payload);
             setPosition(parseInt(event.payload));
           }
         );
@@ -202,7 +201,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
           (event) => {
             try {
               let status: boolean = JSON.parse(event.payload);
-              console.log("Playing data now", status);
+              // console.log("Playing data now", status);
               setPlaying(status);
 
             } catch (error) {

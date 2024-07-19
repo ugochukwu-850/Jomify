@@ -14,6 +14,7 @@ import styles from "./index.module.scss";
 import customThemes from "./theme";
 
 import SpotifyIcon from "../../assets/spotify.svg";
+import SpotifyIconPng from "../../assets/spotify.png";
 import YouTubeMusicIcon from "../../assets/youtubemusic.svg";
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/tauri";
@@ -47,7 +48,7 @@ const AuthPage = () => {
       >
         <Grid item xs={4} md={2}>
           <Stack className={`${styles.leftbox}`}>
-            <CardMedia width={"200px"} height={"auto"} component="svg" image={YouTubeMusicIcon} />
+            <CardMedia sx={{width: "60%", height: "60%"}} component="img" image={SpotifyIconPng} />
             <Typography variant="h6">
               Powered By <span>Spotify</span> and <span>Youtube</span>
             </Typography>

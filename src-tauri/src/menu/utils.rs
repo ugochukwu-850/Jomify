@@ -146,7 +146,29 @@ pub async fn run_ffmpeg_command(
 
     Ok(())
 }
+pub mod mutex_option_user_serde {
+    use crate::User;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use tauri::async_runtime::Mutex;
 
+    pub fn serialize<S>(value: &Mutex<Option<User>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        // Lock the mutex and serialize the inner value
+        let user = value.blocking_lock();
+        user.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Mutex<Option<User>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // Deserialize the inner value and wrap it in a Mutex
+        let user = Option::<User>::deserialize(deserializer)?;
+        Ok(Mutex::new(user))
+    }
+}
 pub mod arc_rwlock_serde {
     use super::*;
     use std::sync::{Arc, RwLock};

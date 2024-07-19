@@ -18,12 +18,13 @@ export const GlobalState = createContext<
 >(undefined);
 function App() {
   const [global_state, setGlobalState] = useState<GlobalStateContext>({
-    logged_in: false,
+    logged_in: true,
   });
 
   useEffect(() => {
     let run_auth_status = async () => {
       try {
+        console.log("Login sayss");
         let loginStatus: boolean = await invoke("is_authenticated");
         console.log("Login statys", loginStatus);
         setGlobalState({ ...global_state, logged_in: loginStatus });

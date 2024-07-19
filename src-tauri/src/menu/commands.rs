@@ -132,7 +132,7 @@ pub async fn exchange_auth_code(
             app_state
                 .user
                 .lock()
-                .expect("Failed to lock user")
+                .await
                 .replace(user.clone());
 
             // save the user authentication data into database
@@ -149,10 +149,10 @@ pub async fn exchange_auth_code(
 /// If the refresh_token or refresh process fails then it returns false
 /// NB: If no access creds it returns ```false```
 pub async fn is_authenticated(app_state: tauri::State<'_, AppState>) -> Result<bool, MyError> {
-    let user = app_state.user.lock().expect("Failed to lock user").clone();
-    if let Some(mut user) = user {
-        println!("Found user =|>|: {:?} \n", user.profile.display_name);
-        let res = user.is_authenticated().await?;
+    let user = app_state.user.lock().await;
+    if let Some(mut new_user) = user.clone() {
+        println!("Found user =|>|: {:?} \n", new_user.profile.display_name);
+        let res = new_user.is_authenticated().await?;
         return Ok(res);
     }
     Err(anyhow!("Error there is no user in db"))?
@@ -160,12 +160,8 @@ pub async fn is_authenticated(app_state: tauri::State<'_, AppState>) -> Result<b
 
 #[command]
 pub async fn home(app_state: tauri::State<'_, AppState>) -> Result<HomeResponse, MyError> {
-    let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
-    let user = match app_state.user.lock() {
-        Ok(e) => e.clone(),
-        Err(_) => return var_name,
-    };
-    if let Some(mut user) = user {
+    let mut user = app_state.user.lock().await;
+    if let Some(user) = user.as_mut() {
         let home = user.home().await;
         return home;
     };
@@ -178,8 +174,8 @@ pub async fn get_tracks(
     id: String,
     app_state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Track>, MyError> {
-    let user = app_state.user.lock().unwrap().clone();
-    if let Some(mut user) = user {
+    let mut user = app_state.user.lock().await;
+    if let Some(user) = user.as_mut() {
         return user.get_tracks(id, object).await;
     }
 
@@ -352,12 +348,7 @@ pub fn play_queue(
             } else {
                 sink2.pause()
             }
-            // window1
-            //     .emit(
-            //         "sink-playing-status",
-            //         !sink2.is_paused(),
-            //     )
-            //     .expect("Failed to run event");
+         
             println!("Just toggled sink status => Playing {}", sink2.is_paused())
         });
     };
@@ -404,7 +395,6 @@ pub fn play_queue(
     let next_and_previous = || {
         let next_sink = sink.clone();
         let next_queue = queue.clone();
-        let h_window = window.clone();
         window.listen("next-previous", move |event| {
             let mut next_queue_gaurd = next_queue.write().expect("Failed to read next");
             let current_head = next_queue_gaurd.head;
@@ -423,7 +413,6 @@ pub fn play_queue(
                 );
                 next_sink.play();
                 next_sink.stop();
-                let _ = h_window.trigger("set-position", None);
             }
         });
     };
@@ -468,20 +457,26 @@ pub fn play_queue(
         let pos = position.clone();
         let pos2 = position.clone();
         let window = window.clone();
-
         window.clone().listen("set-position", move |_| {
             let mut position_guard = pos.lock().expect("Failed to lock");
             *position_guard = 0;
         });
 
         window.clone().listen("seek", move |event| {
-            let seconds = if let Some(e) = event.payload() {
-                e.parse::<i32>().unwrap_or(1)
-            } else {
-                0
-            };
-            let mut position_guard = pos2.lock().expect("Failed to lock");
-            *position_guard = seconds;
+            if let Some(seconds) = {
+                if event.payload().is_some() {
+                    if let Ok(e) = event.payload().unwrap().parse::<i32>() {
+                        Some(e)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } {
+                let mut position_guard = pos2.lock().expect("Failed to lock");
+                *position_guard = seconds;
+            }
         });
 
         tauri::async_runtime::spawn(async move {
@@ -629,7 +624,7 @@ pub fn play_queue(
 
                 if let Ok(e) = serde_json::to_string(next_track) {
                     // Attempting to process next track
-                    println!("Attempting to process next track: {}", e);
+                    println!("Attempting to process next track: {}", next_track[0].name);
                     window.trigger("process-tracks", Some(e));
                 }
             }
@@ -688,11 +683,11 @@ pub fn play_queue(
                         serde_json::to_string(&track).expect("Failed to parse"),
                     )
                     .expect("Failed to emit message");
+                let _ = window.trigger("set-position", None);
 
                 sink.play();
 
                 sink.sleep_until_end();
-                let _ = window.trigger("set-position", None);
             }
 
             let cur_head = queue.read().expect("Failed to read").head.clone().unwrap();
@@ -952,12 +947,9 @@ pub fn play_next(window: Window, track: Track) {
 /// This commands returns a list of albums
 #[command]
 pub async fn artist_detail(id: String, window: Window) -> Result<Artist, MyError> {
-    let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
-    let user = match window.state::<AppState>().user.lock() {
-        Ok(e) => e.clone(),
-        Err(_) => return var_name,
-    };
-    if let Some(mut user) = user {
+    let state = window.state::<AppState>();
+    let mut user = state.user.lock().await;
+    if let Some(user) = user.as_mut() {
         let home = user.get_artist(id).await;
         return home;
     };
@@ -969,14 +961,11 @@ pub async fn artist_detail(id: String, window: Window) -> Result<Artist, MyError
 
 #[command]
 pub async fn artist_albums(id: String, window: Window) -> Result<Vec<AlbumItem>, MyError> {
-    let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
-    let user = match window.state::<AppState>().user.lock() {
-        Ok(e) => e.clone(),
-        Err(_) => return var_name,
-    };
-    if let Some(mut user) = user {
-        let home = user.get_artist_albums(id).await;
-        return home;
+    let state = window.state::<AppState>();
+    let mut user = state.user.lock().await;
+    if let Some(user) = user.as_mut() {
+        let albums = user.get_artist_albums(id).await;
+        return albums;
     };
 
     Err(anyhow::anyhow!(
@@ -989,14 +978,11 @@ pub async fn search_command(
     q: String,
     window: Window,
 ) -> Result<super::gear_structures::SearchResult, MyError> {
-    let var_name = Err(MyError::Custom("Failed to get user from lock".to_string()));
-    let user = match window.state::<AppState>().user.lock() {
-        Ok(e) => e.clone(),
-        Err(_) => return var_name,
-    };
-    if let Some(mut user) = user {
-        let home = user.search(q).await;
-        return home;
+    let state = window.state::<AppState>();
+    let mut user = state.user.lock().await;
+    if let Some(user) = user.as_mut() {
+        let searches = user.search(q).await;
+        return searches;
     };
 
     Err(anyhow::anyhow!(

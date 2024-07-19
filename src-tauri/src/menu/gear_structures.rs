@@ -10,7 +10,7 @@ pub struct FeaturedPlaylistRequest {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 
 pub struct Playlists {
-    pub items: Vec<PlaylistItem>,
+    pub items: Vec<SimpleifiedPlaylistItem>,
     // pub limit: u32,
     // pub next: Option<String>,
     // pub offset: u32,
@@ -20,7 +20,7 @@ pub struct Playlists {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 
-pub struct PlaylistItem {
+pub struct SimpleifiedPlaylistItem {
     // pub collaborative: bool,
     pub description: Option<String>,
     // pub external_urls: ExternalUrls,

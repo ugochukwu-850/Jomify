@@ -8,7 +8,7 @@ use super::{
     errors::MyError,
     gear_structures::{
         AlbumItem, Albums, Artist, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse,
-        PlaylistItem, Playlists, SearchResult, SimplifiedArtist, Track,
+        SimpleifiedPlaylistItem, Playlists, SearchResult, SimplifiedArtist, Track,
     },
 };
 
@@ -35,7 +35,7 @@ pub struct DefaultObjectsPreview {
     pub released_at: Option<String>,
 }
 
-impl Into<DefaultObjectsPreview> for PlaylistItem {
+impl Into<DefaultObjectsPreview> for SimpleifiedPlaylistItem {
     fn into(self) -> DefaultObjectsPreview {
         DefaultObjectsPreview {
             name: self.name,
@@ -195,7 +195,7 @@ impl User {
             ("offset", "0"),
             ("limit", "50"),
             ("q", &q),
-            ("type", "album,artist,track"),
+            ("type", "album,artist,track,playlist"),
         ];
 
         match client

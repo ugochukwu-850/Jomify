@@ -8,16 +8,18 @@ use menu::{
     commands::play_queue,
     errors::MyError,
     gear_structures::Track,
-    utils::{arc_rwlock_serde, generate_audio_path, generate_search_query, generate_video_path},
+    utils::{arc_rwlock_serde, mutex_option_user_serde, generate_audio_path, generate_search_query, generate_video_path},
 };
 use serde::{Deserialize, Serialize};
 use tauri::{api::path::app_data_dir, Manager, WindowEvent};
 
 pub mod menu;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tauri::async_runtime::Mutex;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
+    #[serde(with = "mutex_option_user_serde")]
     pub user: Mutex<Option<User>>,
     #[serde(with = "arc_rwlock_serde")]
     pub queue: Arc<RwLock<JomoQueue>>,
@@ -120,7 +122,6 @@ fn main() {
             let state = AppState::new_from_db(&db)
                 .expect("This would never fail; thanks to exceptional error handling");
 
-            println!("{:?}", state);
             app.manage(state);
             let app_state = app.state::<AppState>();
             let app_queue = app_state.queue.clone();
@@ -208,13 +209,20 @@ fn main() {
                 // save to db and exit successfully
                 match state.save_to_db(&db) {
                     Ok(former) => {
-                        println!("Saved succesffuly ;  \n Former len {:?} ", former.user);
+                        println!(
+                            "Successfully saved :) \n Previous key size : {:?} chunks",
+                            serde_json::to_vec(&former).unwrap().len()
+                        );
                     }
                     Err(_) => println!("Something wrong happened ; Failed to save state to db"),
                 }
                 let start = std::time::Instant::now();
                 if let Ok(e) = db.flush() {
-                    println!("Flushed {} bytes in {} seconds ", e, (std::time::Instant::now() - start).as_secs_f64());
+                    println!(
+                        "Flushed {} bytes in {} seconds ",
+                        e,
+                        (std::time::Instant::now() - start).as_secs_f64()
+                    );
                 }
 
                 println!("Data persist successfully . \n Gracefull shutdown");
