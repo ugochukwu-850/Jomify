@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::f64::consts::E;
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use super::errors::MyError;
@@ -12,7 +13,7 @@ use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 
 impl Track {
-    pub fn persist(&self, con: &mut SqliteConnection) -> Result<Option<Self>, MyError> {
+    pub fn persist(&self, con: &mut SqliteConnection) -> Result<i32, MyError> {
         // build the main track and model instance
         // becuase this track always has an artist we are sure the option would not fail
         // call save on the album object
@@ -56,12 +57,12 @@ impl Track {
                 diesel::insert_into(schema::TrackArtists::table)
                     .values(&artist_track_instance)
                     .execute(con)
-                    .expect("Failed to map artists to tracks")
+                    .unwrap();
             }
             Err(_e) => panic!("I could not catch this error I am too lazy"),
         };
 
-        Err(MyError::Custom("Example error".to_string()))
+        Ok(0)
     }
 }
 
@@ -117,9 +118,12 @@ impl AlbumItem {
                 diesel::insert_into(schema::AlbumArtists::table)
                     .values(&album_artist_instance)
                     .execute(con)
-                    .expect("Failed to map artists to albums")
+                    .unwrap();
             }
-            Err(_) => todo!("I dont have r=stregheo for tis;;; rarrrh its spoiling my accuracy"),
+            Err(e) => todo!(
+                "I dont have r=stregheo for tis;;; rarrrh its spoiling my accuracy: \n {:?}",
+                e
+            ),
         };
         Ok(0)
     }
@@ -228,7 +232,9 @@ impl Image {
     pub fn get_local_url(&self) -> Result<String, MyError> {
         // the local id is the path field of the url
         let url = reqwest::Url::from_str(&self.url).expect("Hody");
-        let path = url.to_file_path().expect("Failed");
+        let mut path = PathBuf::new();
+        path = path.join("./images").join(url.path());
+        eprintln!("This is the path: {:?}", path);
         if path.exists() {
             let url = tauri::Url::from_file_path(path)
                 .expect("Failed")
@@ -246,6 +252,7 @@ impl Image {
                 if let Ok(mut e) = res {
                     let mut bytes = Vec::new();
                     while let Ok(Some(byte)) = e.chunk().await {
+                        println!("Loaded ----- chunk with len --- {}", byte.len());
                         bytes.extend(byte);
                     }
                     _ = std::fs::write(path, bytes);
@@ -254,9 +261,7 @@ impl Image {
             });
 
             if *rt_path.lock().unwrap() == true {
-                return Ok(tauri::Url::from_file_path(c_path)
-                    .expect("Failed")
-                    .to_string());
+                return Ok(c_path.to_str().unwrap().to_string());
             }
             return Err(MyError::Custom("Failed to load the image".to_string()));
         }
@@ -268,17 +273,14 @@ impl Image {
         associated_object_type: &str,
     ) -> Result<i32, MyError> {
         use schema::Images::dsl::url;
-
+        let x = self.get_local_url().unwrap();
+        eprint!("{x:?}");
         // save the image to db first
-        let image_id = if let Ok(e) = diesel::insert_into(schema::Images::table)
-            .values(&(url.eq(self.url.clone())))
+        let image_id: models::Image = diesel::insert_into(schema::Images::table)
+            .values(&(url.eq(x)))
             .get_result::<models::Image>(con)
-        {
-            e.id
-            // later use matches here instead
-        } else {
-            return Err(MyError::Custom("Failed to connect".to_string()));
-        };
+            .unwrap();
+        let image_id = image_id.id;
 
         match associated_object_type {
             "artist" => {
@@ -292,7 +294,7 @@ impl Image {
                 let _ = diesel::insert_into(schema::ArtistImages::table)
                     .values(&instance)
                     .execute(con)
-                    .expect("Failed to connect");
+                    .unwrap();
             }
             "album" => {
                 // create the matching table
@@ -305,7 +307,7 @@ impl Image {
                 let _ = diesel::insert_into(schema::AlbumImages::table)
                     .values(&instance)
                     .execute(con)
-                    .expect("Failed to connect");
+                    .unwrap();
             }
             _ => todo!("Sorry I did not consider saving for your object type"),
         };
@@ -321,19 +323,53 @@ impl Image {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use diesel::sqlite::SqliteConnection;
     use diesel::connection::Connection;
+    use diesel::sqlite::SqliteConnection;
     use gear_structures::*;
-    // use diesel::migration::run_pending_migrations;
 
-    fn establish_test_connection() -> SqliteConnection {
-        let conn = SqliteConnection::establish(":memory:").expect("Failed to establish test connection");
-        // run_pending_migrations(&conn).expect("Failed to run migrations");
+    pub fn establish_test_connection() -> SqliteConnection {
+        dotenvy::dotenv().ok();
+        let database_url =
+            std::env::var("DATABASE_URL").expect("failed to find the env variable DATABASE_URL");
+
+        let mut conn =
+            SqliteConnection::establish(&database_url).expect("Failed to establish db connection");
+        clear_tables(&mut conn);
         conn
+    }
+
+    fn clear_tables(conn: &mut SqliteConnection) {
+        diesel::delete(schema::Tracks::table)
+            .execute(conn)
+            .expect("Failed to clear Tracks table");
+
+        diesel::delete(schema::Albums::table)
+            .execute(conn)
+            .expect("Failed to clear Albums table");
+
+        diesel::delete(schema::Artists::table)
+            .execute(conn)
+            .expect("Failed to clear Artists table");
+
+        diesel::delete(schema::AlbumArtists::table)
+            .execute(conn)
+            .expect("Failed to clear Artists table");
+        diesel::delete(schema::ArtistImages::table)
+            .execute(conn)
+            .expect("Failed to clear Artists table");
+        diesel::delete(schema::TrackArtists::table)
+            .execute(conn)
+            .expect("Failed to clear Artists table");
+        diesel::delete(schema::Images::table)
+            .execute(conn)
+            .expect("Failed to clear Artists table");
+        diesel::delete(schema::TrackImages::table)
+            .execute(conn)
+            .expect("Failed to clear Artists table");
+        
     }
 
     #[test]
@@ -357,7 +393,7 @@ mod tests {
         };
 
         let album = AlbumItem {
-            album_type: "album_type".to_string(),
+            album_type: "album".to_string(),
             artists: vec![SimplifiedArtist {
                 id: artist.id.clone(),
                 href: artist.href.clone(),
@@ -365,7 +401,7 @@ mod tests {
                 uri: artist.uri.clone(),
             }],
             href: "album_href".to_string(),
-            id: "album_id".to_string(),
+            id: "oeifjrofijer".to_string(),
             images: vec![],
             name: "Album Name".to_string(),
             release_date: "2024-07-24".to_string(),
@@ -389,6 +425,7 @@ mod tests {
 
         // Run the test
         let result = track.persist(&mut conn);
+        eprintln!("result: {:?}", result);
         assert!(result.is_ok(), "Track should persist without error");
     }
 
@@ -413,7 +450,7 @@ mod tests {
         };
 
         let album = AlbumItem {
-            album_type: "album_type".to_string(),
+            album_type: "album".to_string(),
             artists: vec![SimplifiedArtist {
                 id: artist.id.clone(),
                 href: artist.href.clone(),
@@ -421,7 +458,7 @@ mod tests {
                 uri: artist.uri.clone(),
             }],
             href: "album_href".to_string(),
-            id: "album_id".to_string(),
+            id: "album_id111".to_string(),
             images: vec![],
             name: "Album Name".to_string(),
             release_date: "2024-07-24".to_string(),
