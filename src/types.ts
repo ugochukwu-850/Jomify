@@ -54,7 +54,7 @@ interface User {
 export interface HomeResponse {
   gallery: DefaultObjectsPreview[];
   featured_playlists: DefaultObjectsPreview[];
-  albums?: DefaultObjectsPreview[];
+  new_release_album?: Album[];
 }
 
 export interface DefaultObjectsPreview {
@@ -85,23 +85,23 @@ interface Image {
   width?: number;
 }
 export interface Album {
-  type: string,
-  artists: SimplifiedArtist[] | SimplifiedArtist,
-  href: string,
-  id: string,
-  images: Image[],
-  name: string,
-  release_date: string,
-  // pub release_date_precision: string,
+  type: string;
+  artists: SimplifiedArtist[] | SimplifiedArtist;
+  href: string;
+  id: string;
+  images: Image[];
+  name: string;
+  release_date: string;
+  // release_date_precision: string,
   // total_tracks?: number,
-  // pub type_: string,
+  // type_: string,
   // uri: string,
 }
 export interface Track {
   name: string;
   duration_ms: number;
   isPlaying?: boolean;
-  album?: Album,
+  album?: Album;
   artists: SimplifiedArtist[];
   href: URL;
   id: string;
@@ -114,87 +114,106 @@ export interface Track {
 export interface DefaultObjectPage {
   header: DefaultObjectsPreview | ArtistDetail;
   context?: Track[] | Album[];
-  auto_play?: boolean,
+  auto_play?: boolean;
 }
 
-
 export interface ArtistDetail extends SimplifiedArtist {
-  id: string,
+  id: string;
   name: string;
   images: Image[];
-  type: string,
-  popularity: number,
-  genres: string[],
-  followers: Followers,
+  type: string;
+  popularity: number;
+  genres: string[];
+  followers: Followers;
 }
 
 interface Followers {
-  href?: string,
-  total: number
+  href?: string;
+  total: number;
 }
 
 export interface JomoNavigation {
   refresh(new_nav: JomoNavigation): Promise<JomoNavigation>;
   previous: null | JomoNavigation;
   next: null | JomoNavigation;
-  data: DefaultObjectPage | null
+  data: DefaultObjectPage | null;
 }
 
 export interface GlobalStateContext {
-  logged_in: boolean,
-  user_info?: User
-} 
+  logged_in: boolean;
+  user_info?: User;
+}
 
 export interface GlobalStateContextController {
-  setGlobalState: React.Dispatch<React.SetStateAction<GlobalStateContext>>,
-  global_state: GlobalStateContext,
+  setGlobalState: React.Dispatch<React.SetStateAction<GlobalStateContext>>;
+  global_state: GlobalStateContext;
 }
 
 export interface JomoNavigationContextShape {
-  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>,
-  nav: JomoNavigation,
-  queue_tab_visible: boolean,
-  setQueueVisible: React.Dispatch<React.SetStateAction<boolean>>
+  setNav: React.Dispatch<React.SetStateAction<JomoNavigation>>;
+  nav: JomoNavigation;
+  queue_tab_visible: boolean;
+  setQueueVisible: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export interface PlayingAction {
-  playing: boolean
+  playing: boolean;
 }
 
 export interface QueueSideMenuData {
-  header: string,
-  tracks: Track[]
+  header: string;
+  tracks: Track[];
 }
 
 export interface LyricsAndVideo {
-  header: string
-  video_src: string,
-  lyrics: string[]
+  header: string;
+  video_src: string;
+  lyrics: string[];
 }
 export interface RightSideMenu {
-  open: boolean,
-  context: QueueSideMenuData
+  open: boolean;
+  context: QueueSideMenuData;
 }
 
 export interface QueueMenuContext {
-  data: RightSideMenu,
-  setData: React.Dispatch<React.SetStateAction<RightSideMenu>>
+  data: RightSideMenu;
+  setData: React.Dispatch<React.SetStateAction<RightSideMenu>>;
 }
 
+export interface SimplifiedPlaylist {
+  description?: string;
+  // external_urls: ExternalUrls,
+  href: String;
+  id: string;
+  images: Image[];
+  name: string;
+  owner: SimplifiedArtist;
+  // primary_color: Option<String>,
+  // public: bool,
+  // snapshot_id: String,
+  // tracks: Tracks,
+  // type_: String,
+  uri: string;
+}
+
+interface SearchResultPlaylist {
+  items: SimplifiedPlaylist[];
+}
 export interface SearchResult {
-  tracks: SearchResultTracks,
-  albums: SearchResultAlbums,
-  artists: SearchResultArtists
+  tracks: SearchResultTracks;
+  albums: SearchResultAlbums;
+  artists: SearchResultArtists;
+  playlists: SearchResultPlaylist;
 }
 
 interface SearchResultAlbums {
-  items: Album[]
+  items: Album[];
 }
 
 export interface SearchResultArtists {
-  items: ArtistDetail[]
+  items: ArtistDetail[];
 }
 
 export interface SearchResultTracks {
-  items: Track[]
+  items: Track[];
 }

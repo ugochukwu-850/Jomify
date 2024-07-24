@@ -250,5 +250,5 @@ pub fn establish_connection() -> SqliteConnection {
     dotenvy::dotenv().ok();
     let database_url =
         std::env::var("DATABASE_URL").expect("failed to find the env variable DATABASE_URL");
-    SqliteConnection::establish(r#"C:\Users\DELL\AppData\Roaming\com.tauri.prod\main.db"#).expect("Failed to establish db connection")
+    SqliteConnection::establish(&database_url).expect("Failed to establish db connection")
 }

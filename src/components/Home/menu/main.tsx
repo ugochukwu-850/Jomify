@@ -7,7 +7,7 @@ import {
   JomoNavigation,
 } from "../../../types";
 import { FC, useContext, useEffect, useState } from "react";
-import DetailPageView from "./page_view";
+import DetailPageView, { AlbumComponent } from "./page_view";
 import nextPage from "../../../util";
 import { GlobalState } from "../../../App";
 import AuthPage from "../../AuthHome/main";
@@ -47,7 +47,7 @@ const Main: FC<mainProp> = ({ props }): JSX.Element => {
     >
       <JomoAppBar nav={nav} setNav={setNav} />
 
-      <Box sx={{ padding: "12px", overflowY: "scroll"}}>
+      <Box sx={{ padding: "12px", overflowY: "scroll" }}>
         {!nav.data ? (
           <>
             <FeaturedPlaylist
@@ -55,6 +55,46 @@ const Main: FC<mainProp> = ({ props }): JSX.Element => {
               setNav={setNav}
               nav={nav}
             />
+            {props?.new_release_album ? (
+              <Box sx={{margin: "2rem auto"}}>
+                <Typography variant="h5" sx={{ fontWeight: "900", padding: "12px 4px"}}>
+                  New Album Releases
+                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "row",
+                    flexWrap: "nowrap",
+                    placeContent: "space-between",
+                    width: "100%",
+                    overflowX: "scroll"
+                  }}
+                >
+                  {props?.new_release_album?.map(
+                    (
+                      { type, artists, href, id, images, name, release_date },
+                      _
+                    ) => {
+                      return (
+                        <Box sx={{minWidth: "220px", height: "auto"}}>
+                          <AlbumComponent
+                          type={type}
+                          artists={artists}
+                          href={href}
+                          id={id}
+                          images={images}
+                          name={name}
+                          release_date={release_date}
+                        />
+                        </Box>
+                      );
+                    }
+                  )}
+                </Box>
+              </Box>
+            ) : (
+              <></>
+            )}
             <MainPlaylistDiver
               data={props ? props.gallery : null}
               setNav={setNav}

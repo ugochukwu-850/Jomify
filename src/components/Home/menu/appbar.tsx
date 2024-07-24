@@ -2,6 +2,7 @@ import {
   ArrowBackIosOutlined,
   ArrowForwardIosOutlined,
   Cancel,
+  Notifications,
   PaymentOutlined,
   PersonOutlineOutlined,
   SearchRounded,
@@ -41,19 +42,37 @@ interface ModelProps {
 }
 
 const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
-  let [search_view, setSearchView] = useState<"tracks" | "artist" | "album">(
-    "tracks"
-  );
+  let [search_view, setSearchView] = useState<
+    "tracks" | "artist" | "album" | "playlist"
+  >("tracks");
   let [search_query, setSearchQuery] = useState("");
   let [search_result_view, setResultViewOpen] = useState(false);
   let [search_result, setSearchResult] = useState<SearchResult | null>(null);
   let [loading, setLoading] = useState(false);
-  useEffect(() => {}, [search_query]);
+  let [display_name, setDisplayName] = useState("");
+
+  useEffect(() => {
+    const GET_DISPLAY_NAME = async () => {
+      try {
+        let display_name: string = await invoke("get_user_display_name");
+        setDisplayName(display_name);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    GET_DISPLAY_NAME();
+  }, []);
   return (
     <AppBar
       elevation={0}
       position="relative"
-      sx={{ background: "transparent", width: "100%", overflowX: "hidden", height: search_result_view ? "100vh": "auto"}}
+      sx={{
+        background: "transparent",
+        width: "100%",
+        overflowX: "hidden",
+        height: search_result_view ? "100vh" : "auto",
+      }}
     >
       <Grid container columns={16} sx={{ margin: "0", padding: "4px 12px" }}>
         <Grid
@@ -165,11 +184,11 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
           }}
           xs={6}
         >
-          <Typography className={styles.licenseStk} variant="body1">
-            Spotify
+          <Typography overflow={"clip"} className={styles.licenseStk} variant="body1">
+            {display_name.split(" ")[0]}
           </Typography>
           <IconButton className={styles.headerIconButton}>
-            <PersonOutlineOutlined className={styles.headerIcon} />
+            <Notifications className={styles.headerIcon} />
           </IconButton>
           <IconButton className={styles.headerIconButton}>
             <PaymentOutlined className={styles.headerIcon} />
@@ -217,6 +236,15 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
             >
               Albums
             </Button>
+            <Button
+              sx={{ borderRadius: "18px", margin: "2px 4px" }}
+              variant={search_view == "playlist" ? "outlined" : "text"}
+              onClick={() => {
+                setSearchView("playlist");
+              }}
+            >
+              Playlists
+            </Button>
           </Box>
           <IconButton
             sx={{ maxHeight: "max-content" }}
@@ -233,8 +261,34 @@ const JomoAppBar: FC<ModelProps> = ({ nav, setNav }) => {
               setResultViewOpen(false);
             }
           }}
-          sx={{ marginTop: "24px"}}
+          sx={{ marginTop: "24px" }}
         >
+          {search_view == "playlist" ? (
+            <Grid
+              container
+              columns={18}
+              justifyContent={"space-evenly"}
+              gap={".5rem"}
+              rowGap={"1rem"}
+              sx={{ margin: "24px 6px", overflowY: "scroll", height: "100%" }}
+            >
+              {search_result?.playlists.items.map((playlist, _) => (
+                <Grid item xs={8} md={4}>
+                  <AlbumComponent
+                    type={"playlist"}
+                    artists={[]}
+                    href={""}
+                    id={playlist.id}
+                    images={playlist.images}
+                    name={playlist.name}
+                    release_date={""}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <></>
+          )}
           {search_view == "tracks" ? (
             search_result ? (
               <SearchTrackComponent items={search_result.tracks.items} />
@@ -375,4 +429,5 @@ const ArtistBulbView: FC<SearchResultArtists> = ({ items }) => {
     </Grid>
   );
 };
+
 export default JomoAppBar;

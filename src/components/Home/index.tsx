@@ -198,6 +198,9 @@ const QueueComponent = () => {
             let track = JSON.parse(event.payload) as Track;
             if (track.id) {
               setHead(track);
+              // scroll to this item
+              let current_track = document.getElementById(track.id);
+              current_track?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             }
             console.log("Printing the event response", event.payload);
           }
@@ -293,6 +296,7 @@ const QueueComponent = () => {
             Now Playing
           </Typography>
           <ListItem
+            id="currently_playing"
             key={head.id}
             sx={{
               gap: "6px",
@@ -367,6 +371,7 @@ const QueueComponent = () => {
                 console.log("Clicked");
                 await play_tracks([track], true, true);
               }}
+              id={track.id}
               key={track.id + track_index}
               sx={{
                 gap: "6px",

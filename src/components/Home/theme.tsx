@@ -28,6 +28,7 @@ const homeTheme = createTheme({
           "&::-webkit-scrollbar, & *::-webkit-scrollbar": {
             backgroundColor: "transparent",
             width: "4px",
+            height: "4px"
           },
           "&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb": {
             minHeight: 12,
