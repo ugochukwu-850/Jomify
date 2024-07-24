@@ -3,15 +3,19 @@
 
 use std::{collections::HashSet, path::PathBuf, sync::RwLock};
 
+use diesel::{Connection, SqliteConnection};
 use menu::{
     auth_structures::User,
     commands::play_queue,
     errors::MyError,
     gear_structures::Track,
-    utils::{arc_rwlock_serde, mutex_option_user_serde, generate_audio_path, generate_search_query, generate_video_path},
+    utils::{
+        arc_rwlock_serde, generate_audio_path, generate_search_query, generate_video_path,
+        mutex_option_user_serde,
+    },
 };
 use serde::{Deserialize, Serialize};
-use tauri::{api::path::app_data_dir, Manager, WindowEvent};
+use tauri::{api::path::app_data_dir, App, Manager, WindowEvent};
 
 pub mod menu;
 #[allow(non_snake_case)]
@@ -33,7 +37,6 @@ pub struct JomoQueue {
     pub volume: f32,
     pub que_track: Vec<Track>,
 }
-
 impl AppState {
     pub fn new() -> Self {
         Self {
@@ -174,6 +177,9 @@ fn main() {
 
                 let _ = play_queue(cursor_queue, data_dir, play_main_window_handle);
             });
+
+            // set the connection cursor handle to the sqlite3 db.
+            // I am using one connection for ACID'ity
 
             Ok(())
         })

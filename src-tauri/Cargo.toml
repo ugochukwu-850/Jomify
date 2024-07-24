@@ -23,7 +23,7 @@ chrono = { version = "0.4.38", features = ["serde"] }
 rodio = "0.18.1"
 rand = "0.8.5"
 rusty_ytdl = "0.7.3"
-diesel = { version = "2.2.1", features = ["sqlite"] }
+diesel = { version = "2.2.1", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
 dotenvy = "0.15.7"
 
 [features]

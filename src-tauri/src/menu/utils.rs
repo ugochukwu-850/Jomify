@@ -1,18 +1,21 @@
 use std::{
-    
     fs::File,
     net::TcpListener,
     path::PathBuf,
-    time::{ SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
+use diesel::{Connection, SqliteConnection};
 use serde::{
     // de::DeserializeOwned,
-    de::DeserializeOwned, Deserialize, Deserializer, Serialize, Serializer
+    de::DeserializeOwned,
+    Deserialize,
+    Deserializer,
+    Serialize,
+    Serializer,
 };
 
-
-use super::errors::MyError;
+use super::{errors::MyError, models::Track};
 
 pub fn get_data_from_db<T: DeserializeOwned + Serialize>(
     db: &tauri::State<'_, sled::Db>,
@@ -21,9 +24,8 @@ pub fn get_data_from_db<T: DeserializeOwned + Serialize>(
     if let Some(user) = db.get(key)? {
         let user: T = serde_json::from_slice(&user)?;
         return Ok(user);
-    }
-    else {
-    Err(anyhow::anyhow!("Error there is no user in db"))?
+    } else {
+        Err(anyhow::anyhow!("Error there is no user in db"))?
     }
 }
 
@@ -242,5 +244,11 @@ pub async fn retrieve_code(
     // });
 
     Err(MyError::Custom("()".to_string()))
+}
 
+pub fn establish_connection() -> SqliteConnection {
+    dotenvy::dotenv().ok();
+    let database_url =
+        std::env::var("DATABASE_URL").expect("failed to find the env variable DATABASE_URL");
+    SqliteConnection::establish(r#"C:\Users\DELL\AppData\Roaming\com.tauri.prod\main.db"#).expect("Failed to establish db connection")
 }

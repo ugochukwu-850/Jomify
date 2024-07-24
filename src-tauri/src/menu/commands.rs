@@ -288,6 +288,13 @@ pub async fn process_queue(
                         .title("D606: Download Error")
                         .body(message)
                         .show();
+                    // set that you failed to process it so it can be retried
+                    {
+                        processes_queue
+                            .write()
+                            .expect("Failed to lock")
+                            .remove(&track.id);
+                    }
                     continue;
                 }
 

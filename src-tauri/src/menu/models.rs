@@ -2,7 +2,7 @@ use diesel::prelude::*;
 use diesel::Queryable;
 use crate::schema::*;
 
-#[derive(Debug, Queryable, Identifiable, Associations)]
+#[derive(Debug, Queryable, Identifiable, Associations, Insertable)]
 #[diesel(table_name = AlbumArtists)]
 #[diesel(primary_key(album_id, artist_id))]
 #[diesel(belongs_to(Album, foreign_key = album_id))]
@@ -12,7 +12,7 @@ pub struct AlbumArtist {
     pub artist_id: Option<String>,
 }
 
-#[derive(Debug, Queryable, Identifiable, Associations)]
+#[derive(Debug, Queryable, Identifiable, Associations, Insertable)]
 #[diesel(table_name = AlbumImages)]
 #[diesel(primary_key(album_id, image_id))]
 #[diesel(belongs_to(Album, foreign_key = album_id))]
@@ -22,7 +22,7 @@ pub struct AlbumImage {
     pub image_id: Option<i32>,
 }
 
-#[derive(Debug, Queryable, Identifiable)]
+#[derive(Debug, Queryable, Identifiable, Insertable)]
 #[diesel(table_name = Albums)]
 #[diesel(primary_key(id))]
 pub struct Album {                       //////
@@ -34,7 +34,7 @@ pub struct Album {                       //////
     pub object_type: Option<String>,
 }
 
-#[derive(Debug, Queryable, Identifiable, Associations)]
+#[derive(Debug, Queryable, Identifiable, Associations, Insertable)]
 #[diesel(table_name = ArtistImages)]
 #[diesel(primary_key(artist_id, image_id))]
 #[diesel(belongs_to(Artist, foreign_key = artist_id))]
@@ -44,7 +44,7 @@ pub struct ArtistImage {
     pub image_id: Option<i32>,
 }
 
-#[derive(Debug, Queryable, Identifiable, Associations)]
+#[derive(Debug, Queryable, Identifiable, Associations, Insertable)]
 #[diesel(table_name = Artists)]
 #[diesel(primary_key(id))]
 #[diesel(belongs_to(Follower, foreign_key = followers_id))]
@@ -77,7 +77,7 @@ pub struct Image {
     pub width: Option<i32>,
 }
 
-#[derive(Debug, Queryable, Identifiable, Associations)]
+#[derive(Debug, Queryable, Identifiable, Associations, Insertable)]
 #[diesel(table_name = TrackArtists)]
 #[diesel(primary_key(track_id, artist_id))]
 #[diesel(belongs_to(Artist, foreign_key = artist_id))]
