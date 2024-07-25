@@ -46,9 +46,9 @@ pub struct ExternalUrls {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 
 pub struct Image {
-    pub height: Option<u32>,
+    pub height: Option<i32>,
     pub url: String,
-    pub width: Option<u32>,
+    pub width: Option<i32>,
 }
 
 // #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -185,7 +185,7 @@ pub struct Track {
     pub artists: Vec<SimplifiedArtist>,
     pub name: String,
     pub id: String,
-    pub duration_ms: u128,
+    pub duration_ms: i64,
     pub href: String,
     pub popularity: i32,
     #[serde(rename = "type")]
@@ -255,7 +255,7 @@ impl AlbumTrackItemResponse {
                     artists: d.artists,
                     name: d.name,
                     id: d.id,
-                    duration_ms: d.duration_ms,
+                    duration_ms: d.duration_ms.try_into().unwrap(),
                     href: d.href,
                     popularity: 0,
                     object_type: d.object_type,

@@ -22,7 +22,7 @@ pub struct AlbumImage {
     pub image_id: Option<i32>,
 }
 
-#[derive(Debug, Queryable, Identifiable, Insertable)]
+#[derive(Debug, Queryable, Identifiable, Insertable, Selectable)]
 #[diesel(table_name = Albums)]
 #[diesel(primary_key(id))]
 pub struct Album {                       //////
@@ -44,7 +44,7 @@ pub struct ArtistImage {
     pub image_id: Option<i32>,
 }
 
-#[derive(Debug, Queryable, Identifiable, Associations, Insertable)]
+#[derive(Debug, Queryable, Identifiable, Associations, Insertable, Selectable)]
 #[diesel(table_name = Artists)]
 #[diesel(primary_key(id))]
 #[diesel(belongs_to(Follower, foreign_key = followers_id))]
@@ -67,7 +67,7 @@ pub struct Follower {
     pub total: Option<i32>,
 }
 
-#[derive(Debug, Queryable, Identifiable)]
+#[derive(Debug, Queryable, Identifiable, Selectable)]
 #[diesel(table_name = Images)]
 #[diesel(primary_key(id))]
 pub struct Image {
@@ -97,7 +97,7 @@ pub struct TrackImage {
     pub image_id: Option<i32>,
 }
 
-#[derive(Debug, Queryable, Identifiable, Associations, Insertable)]
+#[derive(Debug, Queryable, Identifiable, Associations, Insertable, Selectable)]
 #[diesel(table_name = Tracks)]
 #[diesel(primary_key(id))]
 #[diesel(belongs_to(Album, foreign_key = album_id))]

@@ -667,7 +667,7 @@ pub fn play_queue(
                 if let Some(source_duration) = source.total_duration() {
                     let duration = source_duration.as_millis() as u128;
                     println!("duration from source : {}", duration);
-                    track.duration_ms = duration;
+                    track.duration_ms = duration.try_into().unwrap();
                 }
 
                 // Append the new source file

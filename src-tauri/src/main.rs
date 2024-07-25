@@ -3,7 +3,6 @@
 
 use std::{collections::HashSet, path::PathBuf, sync::RwLock};
 
-use diesel::{Connection, SqliteConnection};
 use menu::{
     auth_structures::User,
     commands::play_queue,

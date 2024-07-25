@@ -1,6 +1,4 @@
-use std::any::Any;
-use std::f64::consts::E;
-use std::fmt::Display;
+
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -13,6 +11,95 @@ use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 
 impl Track {
+    // get from db
+    pub fn get_with_id(id: Option<String>, conn: &mut SqliteConnection) -> Result<Self, MyError> {
+        use crate::schema::Tracks::id;
+
+        // retrieve the main track data
+        let track_simp: models::Track = crate::schema::Tracks::table
+            .filter(id.eq(id))
+            .select(models::Track::as_select())
+            .get_result::<models::Track>(conn)
+            .unwrap();
+
+        // retrieve the artists and album
+        let artists = {
+            let artists: Vec<models::Artist> = models::TrackArtist::belonging_to(&track_simp)
+                .inner_join(crate::schema::Artists::table)
+                .select(models::Artist::as_select())
+                .load(conn)
+                .unwrap();
+            // build the artists into a simplified artist type
+            artists
+                .into_iter()
+                .map(|artist| artist.into_simplified_artist())
+                .collect::<Vec<gear_structures::SimplifiedArtist>>()
+        };
+
+        // generate the album
+        let album = {
+            let album: models::Album = crate::schema::Albums::table
+                .filter(crate::schema::Albums::id.eq(track_simp.album_id))
+                .select(models::Album::as_select())
+                .first(conn)
+                .unwrap();
+
+            // get the albums images and its artists
+            let album_images = {
+                let images: Vec<models::Image> = models::AlbumImage::belonging_to(&album)
+                    .inner_join(crate::schema::Images::table)
+                    .select(models::Image::as_select())
+                    .load(conn)
+                    .unwrap();
+
+                images
+                    .into_iter()
+                    .map(|image| gear_structures::Image {
+                        url: image.url,
+                        height: image.height,
+                        width: image.width,
+                    })
+                    .collect::<Vec<gear_structures::Image>>()
+            };
+
+            // get the albums artists
+            let albums_artists = {
+                let artists: Vec<models::Artist> = models::AlbumArtist::belonging_to(&album)
+                    .inner_join(crate::schema::Artists::table)
+                    .select(models::Artist::as_select())
+                    .load(conn)
+                    .unwrap();
+
+                artists
+                    .into_iter()
+                    .map(|artist| artist.into_simplified_artist())
+                    .collect::<Vec<gear_structures::SimplifiedArtist>>()
+            };
+
+            // build into an album type
+            gear_structures::AlbumItem {
+                album_type: album.album_type.unwrap_or_else(|| "album".to_string()),
+                artists: albums_artists,
+                href: album.href.unwrap_or_else(|| "no href".to_string()),
+                id: album.id.unwrap(),
+                images: album_images,
+                name: album.name.unwrap(),
+                release_date: String::new(),
+            }
+        };
+
+        Ok(Self {
+            album: Some(album),
+            artists,
+            name: track_simp.name.unwrap(),
+            id: track_simp.id.unwrap(),
+            duration_ms: track_simp.duration_ms.unwrap().try_into().unwrap(),
+            href: track_simp.href.unwrap(),
+            popularity: track_simp.popularity.unwrap(),
+            object_type: track_simp.object_type.unwrap(),
+        })
+    }
+
     pub fn persist(&self, con: &mut SqliteConnection) -> Result<i32, MyError> {
         // build the main track and model instance
         // becuase this track always has an artist we are sure the option would not fail
@@ -369,7 +456,6 @@ mod tests {
         diesel::delete(schema::TrackImages::table)
             .execute(conn)
             .expect("Failed to clear Artists table");
-        
     }
 
     #[test]
@@ -427,6 +513,69 @@ mod tests {
         let result = track.persist(&mut conn);
         eprintln!("result: {:?}", result);
         assert!(result.is_ok(), "Track should persist without error");
+    }
+
+    #[test]
+    fn test_retrieve_track() {
+        let mut conn = establish_test_connection();
+
+        // Setup test data
+        let artist = Artist {
+            href: "artist_href".to_string(),
+            id: "artist_id".to_string(),
+            name: "Artist Name".to_string(),
+            uri: "artist_uri".to_string(),
+            images: vec![],
+            object_type: "artist".to_string(),
+            followers: Followers {
+                href: Some("followers_href".to_string()),
+                total: 100,
+            },
+            genres: vec![],
+            popularity: 50,
+        };
+
+        let album = AlbumItem {
+            album_type: "album".to_string(),
+            artists: vec![SimplifiedArtist {
+                id: artist.id.clone(),
+                href: artist.href.clone(),
+                name: artist.name.clone(),
+                uri: artist.uri.clone(),
+            }],
+            href: "album_href".to_string(),
+            id: "oeifjrofijer".to_string(),
+            images: vec![],
+            name: "Album Name".to_string(),
+            release_date: "2024-07-24".to_string(),
+        };
+
+        let track = Track {
+            album: Some(album),
+            artists: vec![SimplifiedArtist {
+                id: artist.id.clone(),
+                href: artist.href.clone(),
+                name: artist.name.clone(),
+                uri: artist.uri.clone(),
+            }],
+            name: "Track Name".to_string(),
+            id: "track_id".to_string(),
+            duration_ms: 200000,
+            href: "track_href".to_string(),
+            popularity: 70,
+            object_type: "track".to_string(),
+        };
+
+        // Run the test
+        let result = track.persist(&mut conn);
+        eprintln!("result: {:?}", result);
+        assert!(result.is_ok(), "Track should persist without error");
+
+        // try to get the track with the id
+        let result = gear_structures::Track::get_with_id(Some("track_id".to_string()), &mut conn);
+        eprintln!("result: {:?}", result);
+        assert!(result.is_ok(), "Track should persist without error");
+        assert_eq!(result.unwrap().name, String::from("Track Name"))
     }
 
     #[test]
@@ -509,5 +658,17 @@ mod tests {
         let result = image.persist(&mut conn, &"associated_object_id".to_string(), "artist");
         eprintln!("{result:?}");
         assert!(result.is_ok(), "Image should persist without error");
+    }
+}
+
+impl models::Artist {
+    pub fn into_simplified_artist(self) -> gear_structures::SimplifiedArtist {
+        let artist = self;
+        gear_structures::SimplifiedArtist {
+            href: artist.href.unwrap_or_else(|| "no href".to_string()),
+            id: artist.id.unwrap(),
+            name: artist.name.unwrap_or_else(|| "Anonymous".to_string()),
+            uri: artist.uri.unwrap_or_else(|| "uri_unknown".to_string()),
+        }
     }
 }
