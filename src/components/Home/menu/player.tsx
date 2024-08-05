@@ -42,7 +42,7 @@ import {
   VolumeDownOutlined,
 } from "@mui/icons-material";
 import { JomoSlider } from "../theme";
-import { FC, useContext, useEffect, useState } from "react";
+import { createRef, FC, useContext, useEffect, useRef, useState } from "react";
 import { appWindow } from "@tauri-apps/api/window";
 import {
   PlayingAction,
@@ -119,6 +119,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
   const [repeat, setRepeat] = useState(false);
   const [loading, setLoading] = useState(false);
   const [shuffle, setShuffle] = useState(false);
+  
 
   useEffect(() => {
     let handle_position = async () => {
@@ -163,34 +164,33 @@ const PlayerControls = (props: { duration: number | undefined }) => {
     handle_position();
   }, []);
 
-  
-  useEffect(() => {
-    let timeoutId: number;
-    const tick = async () => {
-      if (
-        props.duration &&
-        playing &&
-        position <= props.duration / 1000
-      ) {
-        // setPosition((prevPosition) => prevPosition + 1);
-        await appWindow.emit("set-position", position);
-      } else if (
-        props.duration &&
-        position >= Math.floor(props.duration / 1000)
-      ) {
-        // Reset position to 0 when it reaches duration
-        // setPosition(0);
-      }
-    };
+  // useEffect(() => {
+  //   let timeoutId: number;
+  //   const tick = async () => {
+  //     if (
+  //       props.duration &&
+  //       playing &&
+  //       position <= props.duration / 1000
+  //     ) {
+  //       // setPosition((prevPosition) => prevPosition + 1);
+  //       await appWindow.emit("set-position", position);
+  //     } else if (
+  //       props.duration &&
+  //       position >= Math.floor(props.duration / 1000)
+  //     ) {
+  //       // Reset position to 0 when it reaches duration
+  //       // setPosition(0);
+  //     }
+  //   };
 
-    timeoutId = setTimeout(tick, 1000);
-    // Cleanup function to clear timeout on component unmount or dependency change
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [props.duration, position, playing, loading]);
+  //   timeoutId = setTimeout(tick, 1000);
+  //   // Cleanup function to clear timeout on component unmount or dependency change
+  //   return () => {
+  //     if (timeoutId) {
+  //       clearTimeout(timeoutId);
+  //     }
+  //   };
+  // }, [props.duration, position, playing, loading]);
 
   useEffect(() => {
     let update_play_status = async () => {
@@ -203,7 +203,6 @@ const PlayerControls = (props: { duration: number | undefined }) => {
               let status: boolean = JSON.parse(event.payload);
               // console.log("Playing data now", status);
               setPlaying(status);
-
             } catch (error) {
               console.error("Failed to parse JSON payload:", error);
             }
@@ -222,7 +221,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
         <IconButton
           onClick={async () => {
             // invoke the tuggle suffle at backend
-            try {
+            try { 
               await appWindow.emit("toggle-shuffle");
               // toggle shuffle and send the backend
               setShuffle((prev) => !prev);

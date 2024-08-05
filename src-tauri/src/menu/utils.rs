@@ -2,7 +2,7 @@ use std::{
     fs::File,
     net::TcpListener,
     path::PathBuf,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use diesel::{Connection, SqliteConnection};
@@ -46,27 +46,31 @@ pub fn simple_random() -> u32 {
     nanos % 1001
 }
 
-pub fn wait_read_file(filepath: &PathBuf) -> Result<File, MyError> {
+pub fn wait_read_file(filepath: &PathBuf, timeout: Option<u64>) -> Result<File, MyError> {
     // Read the file from memory
+    let now = Instant::now;
+    let end = now()
+        .checked_add(Duration::from_secs(timeout.unwrap_or_else(|| 1)))
+        .unwrap();
 
-    if filepath.exists() {
-        // wait for four seconds before goind again
-        // this is to ensure the file has been completely read before symphony tries to open it
+    while end < now() {
+        if filepath.exists() {
+            // wait for four seconds before goind again
+            // this is to ensure the file has been completely read before symphony tries to open it
 
-        match File::open(filepath) {
-            Ok(val) => return Ok(val),
-            Err(e) => {
-                // wait for the specified delay before continueing
-                eprintln!("Error opening file: {:#?} \n {}", filepath.to_str(), e);
-
-                return Err(MyError::Custom(
-                    "Could not find even after several wait".to_string(),
-                ));
-            }
-        };
-    } else {
-        return Err(MyError::Custom("Could not find file path".to_string()));
+            match File::open(filepath) {
+                Ok(val) => return Ok(val),
+                Err(e) => {
+                    // wait for the specified delay before continueing
+                    eprintln!("Error opening file: {:#?} \n {}", filepath.to_str(), e);
+                }
+            };
+        } else {
+            return Err(MyError::Custom("Could not find file path".to_string()));
+        }
+        std::thread::sleep(Duration::from_secs(2));
     }
+    return Err(MyError::Custom("Could not find file path".to_string()));
 }
 
 use tauri::{

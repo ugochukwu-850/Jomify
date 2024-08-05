@@ -23,6 +23,7 @@ use rodio::{Decoder, OutputStream, Sink, Source};
 use rusty_ytdl::search::{SearchResult, YouTube};
 use rusty_ytdl::{Video, VideoOptions, VideoQuality, VideoSearchOptions};
 use tauri::api::notification::Notification;
+use tauri::api::path::app_data_dir;
 use tauri::{command, Manager, Window};
 
 // Define the store state to hold the store
@@ -49,7 +50,6 @@ pub async fn sign_in(
         // Set the PKCE code challenge.
         .set_pkce_challenge(pkce_challenge)
         .url();
-
 
     // start the listner
     println!("Generated authorization url and started waiting for reciever");
@@ -119,11 +119,7 @@ pub async fn exchange_auth_code(
                 auth_creds,
             };
             // insert db into state : NB: would be saved to memory on exit
-            app_state
-                .user
-                .lock()
-                .await
-                .replace(user.clone());
+            app_state.user.lock().await.replace(user.clone());
 
             // save the user authentication data into database
             Ok(user)
@@ -323,18 +319,19 @@ pub async fn process_queue(
     Ok(())
 }
 
-pub fn play_queue(
-    queue: Arc<RwLock<JomoQueue>>,
-    root_path: Arc<PathBuf>,
+pub async fn play_queue(
     window: Window,
 ) -> Result<(), MyError> {
     let mut loop_i = 0;
-    let (_stream, stream_handle) = OutputStream::try_default().expect("Failed to find default");
+    let (stream, stream_handle) = OutputStream::try_default().expect("Failed to find default");
+    
     let sink = Arc::new(Sink::try_new(&stream_handle).expect("Failed to load sink "));
     sink.pause();
     let repeat = Arc::new(RwLock::new(false));
     let shuffle = Arc::new(RwLock::new(false));
-
+    let state = window.state::<AppState>();
+    let queue = state.queue.clone();
+    let root_path = app_data_dir(&window.config()).expect("Failed to load config");
     // toggle the play state
     let toggle_play = || {
         let sink2 = sink.clone();
@@ -345,7 +342,7 @@ pub fn play_queue(
             } else {
                 sink2.pause()
             }
-         
+
             println!("Just toggled sink status => Playing {}", sink2.is_paused())
         });
     };
@@ -385,6 +382,7 @@ pub fn play_queue(
                 write_guard.head = Some(payload); // Use wrapping_sub to avoid negative values
                 drop(write_guard); // Release the write lock before calling stop
                 set_play_sink.stop();
+                set_play_sink.play();
             }
         });
     };
@@ -417,7 +415,11 @@ pub fn play_queue(
     let stop_sink = || {
         // stop sink command
         let stop_sink = sink.clone();
+        let queue = queue.clone();
         window.listen("stop-sink", move |_| {
+            // try to hold the queue lock
+            // this is so that no other thread is ultimately trying to do something to the current queue
+            let _unused = queue.write().expect("Its poisoned");
             stop_sink.stop();
         });
     };
@@ -537,6 +539,7 @@ pub fn play_queue(
     //Event handler: toggles queue playback shuffle state
     toggle_shuffle();
 
+    let state = window.state::<AppState>();
     '_player_loop: loop {
         // Only if sink is playing should you try to play the next song
         if !sink.is_paused() && queue.read().expect("Failed to read").que_track.len() > 0 {
@@ -638,7 +641,8 @@ pub fn play_queue(
                     break 'recurse_get_file;
                 }
                 // try to get the file
-                file = if let Ok(e) = wait_read_file(&audio_file_path) {
+                let settings = state.user.lock().await.clone().expect("POinsoned").settings.clone();
+                file = if let Ok(e) = wait_read_file(&audio_file_path, settings.meta_settings.file_load_timeout) {
                     Some(e)
                 } else {
                     // if not file just continue
@@ -987,15 +991,20 @@ pub async fn search_command(
     ))?
 }
 
-
 #[command]
 pub async fn get_user_display_name(window: Window) -> Result<String, MyError> {
     let state = window.state::<AppState>();
     let user = state.user.lock().await;
     if let Some(user) = user.as_ref() {
-        let display_name = user.profile.display_name.clone().unwrap_or_else(|| "Anonymous".to_string());
+        let display_name = user
+            .profile
+            .display_name
+            .clone()
+            .unwrap_or_else(|| "Anonymous".to_string());
         return Ok(display_name);
     };
 
-    return Err(MyError::Custom("Attempt to et display name of current user failed".to_string()))
+    return Err(MyError::Custom(
+        "Attempt to et display name of current user failed".to_string(),
+    ));
 }

@@ -168,13 +168,12 @@ fn main() {
 
             // play the queue
 
-            let cursor_queue = app_queue.clone();
-            let data_dir = app_dir.clone();
+           
             let play_main_window_handle = main_window.clone();
             tauri::async_runtime::spawn(async move {
                 eprintln!("I have recieved the play queue request");
 
-                let _ = play_queue(cursor_queue, data_dir, play_main_window_handle);
+                let _ = play_queue(play_main_window_handle);
             });
 
             // set the connection cursor handle to the sqlite3 db.

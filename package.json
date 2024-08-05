@@ -36,5 +36,6 @@
     "vite-plugin-svg-loader": "^1.0.0",
     "vite-plugin-svgr": "^4.2.0",
     "vite-svg-loader": "^5.1.0"
-  }
+  },
+  "packageManager": "yarn@4.2.2+sha224.1e50daf19e5e249a025569752c60b88005fddf57d10fcde5fc68b88f"
 }

@@ -53,8 +53,13 @@ pub struct Image {
 pub struct Equalizer;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MetaSettings {
+    pub file_load_timeout: Option<u64>
+}
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Settings {
-    equalizer: Equalizer,
+    pub equalizer: Equalizer,
+    pub meta_settings: MetaSettings
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -235,6 +240,7 @@ impl SupportedApps {
 impl Settings {
     pub fn new_default() -> Self {
         Self {
+            meta_settings: MetaSettings::new_default(),
             equalizer: Equalizer::new_default(),
         }
     }
@@ -243,6 +249,14 @@ impl Settings {
 impl Equalizer {
     pub fn new_default() -> Self {
         Self
+    }
+}
+
+impl MetaSettings {
+    pub fn new_default() -> Self {
+        Self {
+            file_load_timeout: None,
+        }
     }
 }
 

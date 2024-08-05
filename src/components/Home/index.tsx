@@ -78,6 +78,19 @@ const Home = () => {
       setRefresh((prev) => prev + 1);
     }
   });
+  
+  document.addEventListener("keydown", async (event) => {
+    if (event.code === "MediaTrackPrevious") {
+      console.log("clicked previous");
+      await appWindow.emit("next-previous");
+      // setPosition(0);
+    } else if (event.code === "MediaTrackNext") {
+      console.log("clicked next");
+      await appWindow.emit("next-previous", {
+        message: "",
+      });
+    }
+  });
 
   useEffect(() => {
     let populate = async () => {
@@ -200,7 +213,10 @@ const QueueComponent = () => {
               setHead(track);
               // scroll to this item
               let current_track = document.getElementById(track.id);
-              current_track?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              current_track?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
             }
             console.log("Printing the event response", event.payload);
           }
