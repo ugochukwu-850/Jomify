@@ -27,9 +27,9 @@ pub enum MyError {
     #[error("Error `{0}`")]
     Custom(String),
     #[error("UTF8 conversion error: {0}")]
-    FromUtf8 (#[from] std::string::FromUtf8Error),
+    FromUtf8(#[from] std::string::FromUtf8Error),
     #[error("Other error: {0}")]
-    Other (#[from] Box<dyn std::error::Error + Send + Sync>),
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl Serialize for MyError {
@@ -40,21 +40,20 @@ impl Serialize for MyError {
         let mut state = serializer.serialize_struct("MyError", 2)?;
         const MAX_ENTRIES: usize = 10; // Set a reasonable limit
 
-let mut verbose12 = Vec::new();
-while let Some(verbose) = self.source() {
-    verbose12.push(verbose.to_string());
-    
-    // Check if we have reached the limit
-    if verbose12.len() >= MAX_ENTRIES {
-        break;
-    }
-}
+        let mut verbose12 = Vec::new();
+        while let Some(verbose) = self.source() {
+            verbose12.push(verbose.to_string());
+
+            // Check if we have reached the limit
+            if verbose12.len() >= MAX_ENTRIES {
+                break;
+            }
+        }
         match self {
             MyError::Reqwest(e) => {
                 state.serialize_field("type", "Reqwest")?;
                 state.serialize_field("message", &e.to_string())?;
                 state.serialize_field("verbose12", &verbose12)?;
-
             }
             MyError::SerdeJson(e) => {
                 state.serialize_field("type", "SerdeJson")?;
@@ -65,43 +64,37 @@ while let Some(verbose) = self.source() {
                 state.serialize_field("type", "OAuth2")?;
                 state.serialize_field("message", &e.to_string())?;
                 state.serialize_field("verbose12", &verbose12)?;
-
             }
             MyError::Sled(e) => {
                 state.serialize_field("type", "Sled")?;
                 state.serialize_field("message", &e.to_string())?;
                 state.serialize_field("verbose12", &verbose12)?;
-
             }
             MyError::ChronoParse(e) => {
                 state.serialize_field("type", "ChronoParse")?;
                 state.serialize_field("message", &e.to_string())?;
                 state.serialize_field("verbose12", &verbose12)?;
-
             }
             MyError::Anyhow(e) => {
                 state.serialize_field("type", "Anyhow")?;
                 state.serialize_field("message", &e.to_string())?;
                 state.serialize_field("verbose12", &verbose12)?;
-
             }
             MyError::Custom(e) => {
                 state.serialize_field("type", "Custom")?;
                 state.serialize_field("message", &e.to_string())?;
                 state.serialize_field("verbose12", &verbose12)?;
-
-            },
-            MyError::FromUtf8(e) =>  {
+            }
+            MyError::FromUtf8(e) => {
                 state.serialize_field("type", "ReqwestTokenResponse")?;
                 state.serialize_field("message", &e.to_string())?;
                 state.serialize_field("verbose12", &verbose12)?;
-
-            },
-            MyError::Other(e)  =>  {
+            }
+            MyError::Other(e) => {
                 state.serialize_field("type", "ReqwestTokenResponse")?;
                 state.serialize_field("message", &e.to_string())?;
                 state.serialize_field("verbose12", &verbose12)?;
-            },
+            }
         }
         state.end()
     }

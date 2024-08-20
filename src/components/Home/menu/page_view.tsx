@@ -58,15 +58,16 @@ import nextPage, {
   generate_artist_page,
   play_tracks,
 } from "../../../util";
-import { invoke } from "@tauri-apps/api/tauri";
-import { appWindow } from "@tauri-apps/api/window";
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { JomoNavigationContext } from "..";
 import { Menu, MenuItem } from "@mui/material";
 import {
   isPermissionGranted,
   requestPermission,
   sendNotification,
-} from "@tauri-apps/api/notification";
+} from "@tauri-apps/plugin-notification";
+const appWindow = getCurrentWebviewWindow()
 
 interface PageProps {
   page: DefaultObjectPage;

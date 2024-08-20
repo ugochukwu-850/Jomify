@@ -17,7 +17,7 @@ import SpotifyIcon from "../../assets/spotify.svg";
 import SpotifyIconPng from "../../assets/spotify.png";
 import YouTubeMusicIcon from "../../assets/youtubemusic.svg";
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/tauri";
+import {invoke} from "@tauri-apps/api/core";
 
 async function InitiateAuthenticationFlow(
   clientId?: string

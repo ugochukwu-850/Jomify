@@ -20,7 +20,7 @@ import HomeSideMenu from "./menu/sidebar";
 import MusicPlayer from "./menu/player";
 import Main from "./menu/main";
 import { createContext, useContext, useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import {
   HomeResponse,
   Track,
@@ -41,10 +41,11 @@ import {
   RemoveCircleOutlineOutlined,
   RemoveSharp,
 } from "@mui/icons-material";
-import { appWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import nextPage, { generate_artist_page, play_tracks } from "../../util";
 import { GlobalState } from "../../App";
 import AuthPage from "../AuthHome/main";
+const appWindow = getCurrentWebviewWindow()
 // const RightSideMenuContext = createContext<null | QueueMenuContext>(null);
 const JomoNavigationContext = createContext<
   JomoNavigationContextShape | undefined
@@ -198,9 +199,6 @@ const QueueComponent = () => {
             let track = JSON.parse(event.payload) as Track;
             if (track.id) {
               setHead(track);
-              // scroll to this item
-              let current_track = document.getElementById(track.id);
-              current_track?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             }
             console.log("Printing the event response", event.payload);
           }
@@ -296,7 +294,6 @@ const QueueComponent = () => {
             Now Playing
           </Typography>
           <ListItem
-            id="currently_playing"
             key={head.id}
             sx={{
               gap: "6px",
@@ -371,7 +368,6 @@ const QueueComponent = () => {
                 console.log("Clicked");
                 await play_tracks([track], true, true);
               }}
-              id={track.id}
               key={track.id + track_index}
               sx={{
                 gap: "6px",

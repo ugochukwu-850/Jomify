@@ -43,7 +43,7 @@ import {
 } from "@mui/icons-material";
 import { JomoSlider } from "../theme";
 import { FC, useContext, useEffect, useState } from "react";
-import { appWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import {
   PlayingAction,
   Track,
@@ -52,7 +52,8 @@ import {
 } from "../../../types";
 import nextPage, { formatDuration, generate_artist_page } from "../../../util";
 import { JomoNavigationContext } from "..";
-import { event, invoke } from "@tauri-apps/api";
+import { invoke } from "@tauri-apps/api/core";
+const appWindow = getCurrentWebviewWindow()
 interface TrackFeed {
   track: Track | undefined;
 }
@@ -199,6 +200,7 @@ const PlayerControls = (props: { duration: number | undefined }) => {
         const unlisten = await appWindow.listen<string>(
           "sink-playing-status",
           (event) => {
+            console.log(event.payload)
             try {
               let status: boolean = JSON.parse(event.payload);
               // console.log("Playing data now", status);

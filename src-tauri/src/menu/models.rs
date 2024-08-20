@@ -1,6 +1,6 @@
+use crate::schema::*;
 use diesel::prelude::*;
 use diesel::Queryable;
-use crate::schema::*;
 
 #[derive(Debug, Queryable, Identifiable, Associations, Insertable)]
 #[diesel(table_name = AlbumArtists)]
@@ -25,7 +25,8 @@ pub struct AlbumImage {
 #[derive(Debug, Queryable, Identifiable, Insertable)]
 #[diesel(table_name = Albums)]
 #[diesel(primary_key(id))]
-pub struct Album {                       //////
+pub struct Album {
+    //////
     pub id: Option<String>,
     pub album_type: Option<String>,
     pub href: Option<String>,

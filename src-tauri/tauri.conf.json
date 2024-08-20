@@ -2,37 +2,29 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist",
-    "withGlobalTauri": true
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1520"
   },
-  "package": {
-    "productName": "Jomify",
-    "version": "0.1.1"
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/jomo.ico",
+      "icons/jomo.icns"
+    ],
+    "category": "Music",
+    "shortDescription": "Music Streaming and Download App",
+    "publisher": "Ugochukwu Chizaram",
+    "externalBin": [
+      "bin/ffmpeg"
+    ]
   },
-  "tauri": {
-    "allowlist": {
-      "all": true,
-      "notification": {
-        "all": true
-      },
-      "shell": {
-        "all": true,
-        "execute": true,
-        "sidecar": true,
-        "open": true,
-        "scope": [{ "name": "bin/ffmpeg", "sidecar": true, "args": true }]
-      },
-      "http": {
-        "all": true,
-        "request": true,
-        "scope": ["https://*", "http://*"]
-      },
-      "path": {
-        "all": true
-      }
-    },
-
+  "productName": "Jomify",
+  "version": "0.1.1",
+  "identifier": "com.tauri.prod",
+  "plugins": {},
+  "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Jomify",
@@ -41,20 +33,7 @@
       }
     ],
     "security": {
-      "csp": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
-    },
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.tauri.prod",
-      "category": "Music",
-      "shortDescription": "Music Streaming and Download App",
-      "publisher": "Ugochukwu Chizaram",
-      "externalBin": ["bin/ffmpeg"],
-      "icon": [
-        "icons/jomo.ico",
-        "icons/jomo.icns"
-      ]
+      "csp": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;; connect-src ipc: http://ipc.localhost"
     }
   }
 }

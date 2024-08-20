@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::{collections::HashSet, path::PathBuf, sync::RwLock};
-
+use tauri::{Listener, Manager};
 use diesel::{Connection, SqliteConnection};
 use menu::{
     auth_structures::User,
@@ -15,12 +15,14 @@ use menu::{
     },
 };
 use serde::{Deserialize, Serialize};
-use tauri::{api::path::app_data_dir, App, Manager, WindowEvent};
+use tauri::{path, App, WindowEvent};
+
 
 pub mod menu;
 #[allow(non_snake_case)]
 pub mod schema;
 use std::sync::Arc;
+use tauri::Emitter;
 use tauri::async_runtime::Mutex;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -101,11 +103,20 @@ impl JomoQueue {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // Get the platform-specific app directory
-            let app_handle = app.app_handle();
+            let app_handle = app.handle();
             let app_dir =
-                Arc::new(app_data_dir(&app_handle.config()).ok_or("Unable to get app directory")?);
+                Arc::new(app.path().app_data_dir().expect("Unable to get app directory"));
             let db_path: PathBuf = app_dir.clone().join("sled_db");
 
             // Open or create the Sled database
@@ -119,7 +130,7 @@ fn main() {
             // `main` here is the window label; it is defined on the window creation or under `tauri.conf.json`
             // the default value is `main`. note that it must be unique
             let main_window = app
-                .get_window("main")
+                .get_webview_window("main")
                 .expect("Could not get main windows : This should not be happening");
 
             //try to get start from db
@@ -134,7 +145,7 @@ fn main() {
             // set user into state from DB
 
             // emit app started
-            let _ = app.emit_all("initializate", "App has started please run initialization");
+            let _ = app.emit("initializate", "App has started please run initialization");
 
             // listen to the `event-name` (emitted on the `main` window)
             let value = app_dir.clone();
@@ -143,9 +154,10 @@ fn main() {
                 Arc::new(RwLock::new(HashSet::new()));
             let matp_handle = main_active_track_processes.clone();
             // process the queue in a rather archaic way
-            main_window.listen("process-tracks", move |event| {
-                let payload = if let Some(e) = event.payload() {
-                    e
+            main_window.listen_any("process-tracks", move |event| {
+                println!("Recieved request to play queue");
+                let payload = if !event.payload().is_empty() {
+                    event.payload()
                 } else {
                     return;
                 };
@@ -200,12 +212,12 @@ fn main() {
             menu::commands::search_command,
             menu::commands::get_user_display_name
         ])
-        .on_window_event(|event| {
+        .on_window_event(|window, event| {
             // create a handler closure for default exit and save protocol
 
             let save_protocol_oo1 = || {
                 // Retrieve app handle
-                let app_handle = event.window().app_handle();
+                let app_handle = window.app_handle();
 
                 // Retrieve db handle from state
                 let db = app_handle.state::<sled::Db>();
@@ -239,7 +251,7 @@ fn main() {
                 app_handle.exit(0);
             };
 
-            if let WindowEvent::CloseRequested { api, .. } = event.event() {
+            if let WindowEvent::CloseRequested { api, .. } = event {
                 // Perform any cleanup before the application closes
                 println!("Application is closing...");
                 api.prevent_close();
@@ -247,7 +259,7 @@ fn main() {
                 save_protocol_oo1();
 
                 // save the state to db
-            } else if let WindowEvent::Destroyed {} = event.event() {
+            } else if let WindowEvent::Destroyed {} = event {
                 println!("Window destroyed, performing cleanup.");
                 // Perform save and exit protocol
                 save_protocol_oo1();

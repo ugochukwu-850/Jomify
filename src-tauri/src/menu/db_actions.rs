@@ -321,17 +321,17 @@ impl Image {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use diesel::sqlite::SqliteConnection;
     use diesel::connection::Connection;
+    use diesel::sqlite::SqliteConnection;
     use gear_structures::*;
     // use diesel::migration::run_pending_migrations;
 
     fn establish_test_connection() -> SqliteConnection {
-        let conn = SqliteConnection::establish(":memory:").expect("Failed to establish test connection");
+        let conn =
+            SqliteConnection::establish(":memory:").expect("Failed to establish test connection");
         // run_pending_migrations(&conn).expect("Failed to run migrations");
         conn
     }

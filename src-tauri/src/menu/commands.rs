@@ -22,8 +22,9 @@ use rand::Rng;
 use rodio::{Decoder, OutputStream, Sink, Source};
 use rusty_ytdl::search::{SearchResult, YouTube};
 use rusty_ytdl::{Video, VideoOptions, VideoQuality, VideoSearchOptions};
-use tauri::api::notification::Notification;
-use tauri::{command, Manager, Window};
+// use tauri::api::notification::Notification;
+use tauri::{command, Emitter, Listener, Manager, WebviewWindow, Window};
+use tauri_plugin_notification::NotificationExt;
 
 // Define the store state to hold the store
 #[command]
@@ -49,7 +50,6 @@ pub async fn sign_in(
         // Set the PKCE code challenge.
         .set_pkce_challenge(pkce_challenge)
         .url();
-
 
     // start the listner
     println!("Generated authorization url and started waiting for reciever");
@@ -119,11 +119,7 @@ pub async fn exchange_auth_code(
                 auth_creds,
             };
             // insert db into state : NB: would be saved to memory on exit
-            app_state
-                .user
-                .lock()
-                .await
-                .replace(user.clone());
+            app_state.user.lock().await.replace(user.clone());
 
             // save the user authentication data into database
             Ok(user)
@@ -175,7 +171,7 @@ pub async fn get_tracks(
 pub async fn process_queue(
     root_path: Arc<PathBuf>,
     tracks: Vec<Track>,
-    window: Window,
+    window: WebviewWindow,
     processes_queue: Arc<RwLock<HashSet<String>>>,
 ) -> Result<(), MyError> {
     let audio_root_path = root_path.join("media").join("audio");
@@ -268,7 +264,7 @@ pub async fn process_queue(
                 while let Some(chunk) = if let Ok(e) = stream.chunk().await {
                     e
                 } else {
-                    let _ = Notification::new(&window.config().tauri.bundle.identifier)
+                    let _ = window.app_handle().notification().builder()
                         .title("D603: Download Error")
                         .body(format!("Could not complete downloading {}", track.name))
                         .show();
@@ -284,7 +280,7 @@ pub async fn process_queue(
                         "Could not download track becuase no data in stream: {}",
                         track.name
                     );
-                    let _ = Notification::new(&window.config().tauri.bundle.identifier)
+                    let _ = window.app_handle().notification().builder()
                         .title("D606: Download Error")
                         .body(message)
                         .show();
@@ -326,7 +322,7 @@ pub async fn process_queue(
 pub fn play_queue(
     queue: Arc<RwLock<JomoQueue>>,
     root_path: Arc<PathBuf>,
-    window: Window,
+    window: WebviewWindow,
 ) -> Result<(), MyError> {
     let mut loop_i = 0;
     let (_stream, stream_handle) = OutputStream::try_default().expect("Failed to find default");
@@ -339,22 +335,22 @@ pub fn play_queue(
     let toggle_play = || {
         let sink2 = sink.clone();
         // let window1 = window.clone();
-        window.listen("toggle-play", move |_| {
+        window.listen_any("toggle-play", move |_| {
             if sink2.is_paused() {
                 sink2.play();
             } else {
                 sink2.pause()
             }
-         
+
             println!("Just toggled sink status => Playing {}", sink2.is_paused())
         });
     };
 
     let volume_control = || {
         let sink3 = sink.clone();
-        window.listen("set-volume", move |event| {
-            let payload = if let Some(e) = event.payload() {
-                e
+        window.listen_any("set-volume", move |event| {
+            let payload = if !event.payload().is_empty() {
+                event.payload()
             } else {
                 return;
             };
@@ -365,9 +361,9 @@ pub fn play_queue(
 
     let seek_sink = || {
         let sink4 = sink.clone();
-        window.listen("seek", move |event| {
-            let payload = if let Some(e) = event.payload() {
-                e
+        window.listen_any("seek", move |event| {
+            let payload = if !event.payload().is_empty() {
+                event.payload()
             } else {
                 return;
             };
@@ -379,8 +375,8 @@ pub fn play_queue(
     let play_index = || {
         let set_play_sink = sink.clone();
         let set_play_queue = queue.clone();
-        window.listen("set-play", move |event| {
-            if let Some(payload) = event.payload().and_then(|e| e.parse::<u32>().ok()) {
+        window.listen_any("set-play", move |event| {
+            if let Some(payload) = event.payload().parse::<u32>().ok() {
                 let mut write_guard = set_play_queue.write().expect("Failed to write");
                 write_guard.head = Some(payload); // Use wrapping_sub to avoid negative values
                 drop(write_guard); // Release the write lock before calling stop
@@ -392,12 +388,12 @@ pub fn play_queue(
     let next_and_previous = || {
         let next_sink = sink.clone();
         let next_queue = queue.clone();
-        window.listen("next-previous", move |event| {
+        window.listen_any("next-previous", move |event| {
             let mut next_queue_gaurd = next_queue.write().expect("Failed to read next");
             let current_head = next_queue_gaurd.head;
             let len = next_queue_gaurd.que_track.len() as u32;
             if let Some(head) = current_head {
-                if event.payload().is_some() {
+                if !event.payload().is_empty() {
                     if let Some(head) = current_head {
                         next_queue_gaurd.head = Some(head.wrapping_add(1) % len);
                     }
@@ -417,14 +413,14 @@ pub fn play_queue(
     let stop_sink = || {
         // stop sink command
         let stop_sink = sink.clone();
-        window.listen("stop-sink", move |_| {
+        window.listen_any("stop-sink", move |_| {
             stop_sink.stop();
         });
     };
 
     let toggle_repeat = || {
         let repeat_clone = repeat.clone();
-        window.listen("toggle-repeat", move |_| {
+        window.listen_any("toggle-repeat", move |_| {
             let repeat = repeat_clone
                 .read()
                 .expect("Failed to read the repeat")
@@ -435,7 +431,7 @@ pub fn play_queue(
 
     let toggle_shuffle = || {
         let shuffle_clone = shuffle.clone();
-        window.listen("toggle-shuffle", move |_| {
+        window.listen_any("toggle-shuffle", move |_| {
             let shuffle = shuffle_clone
                 .read()
                 .expect("Failed to read the repeat")
@@ -454,15 +450,15 @@ pub fn play_queue(
         let pos = position.clone();
         let pos2 = position.clone();
         let window = window.clone();
-        window.clone().listen("set-position", move |_| {
+        window.clone().listen_any("set-position", move |_| {
             let mut position_guard = pos.lock().expect("Failed to lock");
             *position_guard = 0;
         });
 
-        window.clone().listen("seek", move |event| {
+        window.clone().listen_any("seek", move |event| {
             if let Some(seconds) = {
-                if event.payload().is_some() {
-                    if let Ok(e) = event.payload().unwrap().parse::<i32>() {
+                if !event.payload().is_empty() {
+                    if let Ok(e) = event.payload().parse::<i32>() {
                         Some(e)
                     } else {
                         None
@@ -622,7 +618,7 @@ pub fn play_queue(
                 if let Ok(e) = serde_json::to_string(next_track) {
                     // Attempting to process next track
                     println!("Attempting to process next track: {}", next_track[0].name);
-                    window.trigger("process-tracks", Some(e));
+                    window.emit("process-tracks", e);
                 }
             }
 
@@ -680,7 +676,7 @@ pub fn play_queue(
                         serde_json::to_string(&track).expect("Failed to parse"),
                     )
                     .expect("Failed to emit message");
-                let _ = window.trigger("set-position", None);
+                let _ = window.emit("set-position", "");
 
                 sink.play();
 
@@ -726,17 +722,17 @@ pub fn add_to_queue(
             println!("Running the locked data ");
             // if its a playlist play action
             if !add {
-                // window.trigger(
+                // window.emit(
                 //     "process-tracks",
                 //     Some(serde_json::to_string(&tracks).expect("Could not parse queue")),
                 // );
 
                 queue.que_track = tracks.clone();
                 queue.head = Some(0);
-                window.trigger("stop-sink", None);
+                window.emit("stop-sink", "");
                 // emit process queue as queue has be updated\
             } else {
-                // window.trigger(
+                // window.emit(
                 //     "process-tracks",
                 //     Some(serde_json::to_string(&tracks).expect("Could not parse queue")),
                 // );
@@ -781,7 +777,7 @@ pub fn add_to_queue(
                         queue.que_track.len()
                     );
                     queue.head = Some((i % queue.que_track.len()).try_into().unwrap());
-                    window.trigger("stop-sink", None);
+                    window.emit("stop-sink", "");
                 }
             }
         }
@@ -841,7 +837,7 @@ pub async fn remove_from_playlist(
 /// Used on any types that is a vector of Track
 pub fn download(tracks: Vec<Track>, window: Window) -> Result<(), MyError> {
     // call the process tracks on it
-    window.trigger("process-tracks", Some(serde_json::to_string(&tracks)?));
+    window.emit("process-tracks", serde_json::to_string(&tracks)?);
     println!("download has been called ");
     Ok(())
 }
@@ -851,7 +847,7 @@ pub fn download(tracks: Vec<Track>, window: Window) -> Result<(), MyError> {
 /// Instead it checks if every track in the request data is in downloaded
 /// it triggers and emits an event with the status of the track
 pub fn is_downloaded(window: Window, tracks: Vec<Track>) {
-    let root_dir = if let Some(e) = tauri::api::path::app_data_dir(&window.config()) {
+    let root_dir = if let Some(e) = window.app_handle().path().app_data_dir().ok() {
         e.join("media")
     } else {
         return;
@@ -933,7 +929,7 @@ pub fn play_next(window: Window, track: Track) {
     queue.que_track.insert(next_head_index, track);
 
     // call process track and emit queue has changed
-    window.trigger("process-tracks", Some(track_as_string));
+    window.emit("process-tracks", track_as_string);
     let _ = window.emit(
         "queue-changed",
         serde_json::to_string(&queue.que_track).expect("Failed to parse"),
@@ -987,15 +983,20 @@ pub async fn search_command(
     ))?
 }
 
-
 #[command]
 pub async fn get_user_display_name(window: Window) -> Result<String, MyError> {
     let state = window.state::<AppState>();
     let user = state.user.lock().await;
     if let Some(user) = user.as_ref() {
-        let display_name = user.profile.display_name.clone().unwrap_or_else(|| "Anonymous".to_string());
+        let display_name = user
+            .profile
+            .display_name
+            .clone()
+            .unwrap_or_else(|| "Anonymous".to_string());
         return Ok(display_name);
     };
 
-    return Err(MyError::Custom("Attempt to et display name of current user failed".to_string()))
+    return Err(MyError::Custom(
+        "Attempt to et display name of current user failed".to_string(),
+    ));
 }

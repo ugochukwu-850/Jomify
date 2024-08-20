@@ -34,13 +34,13 @@ const FeaturedPlaylist: FC<MajorProp> = ({ data, setNav, nav }) => {
       </Typography>
       <Grid container columns={12}
         sx={{
-          justifyContent: "space-between",
+          justifyContent: "start",
         }}
       >
         {data.map((datum, index) => (
           <Grid
             key={index}
-            xs = {12} sm={6} md={4} lg={4} xl={4}
+            xs = {12} sm={6} md={6} lg={6} xl={4}
             sx={{
               margin: "2px 0",
               "& :hover": { background: lighten("#242424", 0.05) },

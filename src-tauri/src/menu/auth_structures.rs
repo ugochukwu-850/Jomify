@@ -88,9 +88,7 @@ impl User {
         }
     }
     /// Gets the auth creds and refresh them if neccessary
-    pub async fn get_auth_creds(
-        &mut self,
-    ) -> Result<AuthCreds, MyError> {
+    pub async fn get_auth_creds(&mut self) -> Result<AuthCreds, MyError> {
         match &mut self.app {
             SupportedApps::Spotify => {
                 let auth_cred = self.refresh().await?;
@@ -128,7 +126,7 @@ impl User {
                             let response = response.text().await?;
                             let mut auth_creds: AuthCreds = serde_json::from_str(&response)?;
                             auth_creds.validate();
-                            // update the user state to have the creds in it 
+                            // update the user state to have the creds in it
                             self.auth_creds = auth_creds.clone();
                             return Ok(auth_creds);
                         }

@@ -14,7 +14,9 @@ use serde::{
     Serialize,
     Serializer,
 };
-
+use tauri::Emitter;
+use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_shell::{process::CommandEvent, ShellExt};
 use super::{errors::MyError, models::Track};
 
 pub fn get_data_from_db<T: DeserializeOwned + Serialize>(
@@ -69,16 +71,10 @@ pub fn wait_read_file(filepath: &PathBuf) -> Result<File, MyError> {
     }
 }
 
-use tauri::{
-    api::{
-        process::{Command, CommandEvent},
-        shell::open,
-    },
-    Manager,
-};
+use tauri::{Manager, WebviewWindow};
 
 pub async fn run_ffmpeg_command(
-    window: tauri::Window,
+    window: WebviewWindow,
     track_id: &String,
     track_name: &String,
     search_query: &String,
@@ -98,7 +94,7 @@ pub async fn run_ffmpeg_command(
         audio_path_str,
     ];
 
-    let (mut rx, _child) = Command::new_sidecar("ffmpeg")
+    let (mut rx, _child) = window.app_handle().shell().sidecar("ffmpeg")
         .map_err(|e| e.to_string())?
         .args(args)
         .spawn()
@@ -108,9 +104,9 @@ pub async fn run_ffmpeg_command(
 
     while let Some(event) = rx.recv().await {
         match event {
-            CommandEvent::Stdout(line) => println!("stdout: {}", line),
-            CommandEvent::Stderr(line) => eprintln!("stderr: {}", line),
-            CommandEvent::Error(line) => eprintln!("error: {}", line),
+            CommandEvent::Stdout(line) => println!("stdout: {:?}", line),
+            CommandEvent::Stderr(line) => eprintln!("stderr: {:?}", line),
+            CommandEvent::Error(line) => eprintln!("error: {:?}", line),
             CommandEvent::Terminated(status) => {
                 success = if status.code.unwrap_or(1) == 0 {
                     true
@@ -127,7 +123,7 @@ pub async fn run_ffmpeg_command(
         let _ = window.emit(&format!("downloaded-{}", track_id), "downloaded");
         // Show a success notification
         let _ =
-            tauri::api::notification::Notification::new(&window.config().tauri.bundle.identifier)
+            window.app_handle().notification().builder()
                 .title("S201: Download Success")
                 .body(format!(
                     "Successfully downloaded and processed {} ",
@@ -137,7 +133,7 @@ pub async fn run_ffmpeg_command(
     } else {
         // Emit an error message to the frontend
         let _ =
-            tauri::api::notification::Notification::new(&window.config().tauri.bundle.identifier)
+            window.app_handle().notification().builder()
                 .title("E601: Audio Preprocessing Error")
                 .body(format!(
                     "FFMPEG RAN INTO AN ERROR WHILE PROCESSING {}",
@@ -199,7 +195,7 @@ pub async fn retrieve_code(
 ) -> Result<(String, String), MyError> {
     // Start the TCP server and get the receiver for the OAuth2 code
     // let (sender, mut receiver) = channel(100);
-    open(&window.shell_scope(), &auth_url, None).map_err(|e| MyError::Custom(e.to_string()))?;
+    window.shell().open(&auth_url, None).map_err(|e| MyError::Custom(e.to_string()))?;
 
     let listener = TcpListener::bind("127.0.0.1:1420").expect("Failed to bind port 1420");
     for stream in listener.incoming() {

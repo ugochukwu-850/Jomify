@@ -8,7 +8,7 @@ use super::{
     errors::MyError,
     gear_structures::{
         AlbumItem, Albums, Artist, FeaturedPlaylistRequest, Image, NewReleaseAlbumResponse,
-        SimpleifiedPlaylistItem, Playlists, SearchResult, SimplifiedArtist, Track,
+        Playlists, SearchResult, SimpleifiedPlaylistItem, SimplifiedArtist, Track,
     },
 };
 

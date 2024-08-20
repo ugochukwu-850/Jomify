@@ -8,10 +8,11 @@ import { createContext, useEffect, useState } from "react";
 
 import { StyledEngineProvider } from "@mui/material";
 
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core"
 import Home from "./components/Home";
-import { appWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { GlobalStateContext, GlobalStateContextController } from "./types";
+const appWindow = getCurrentWebviewWindow()
 
 export const GlobalState = createContext<
   GlobalStateContextController | undefined

@@ -89,13 +89,13 @@ pub struct Artist {
     pub object_type: String,
     pub followers: Followers,
     pub genres: Vec<String>,
-    pub popularity: u32
+    pub popularity: u32,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Followers {
     pub href: Option<String>,
-    pub total: u32
+    pub total: u32,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -146,7 +146,6 @@ pub struct AlbumItem {
     pub images: Vec<Image>,
     pub name: String,
     pub release_date: String,
-
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -189,7 +188,7 @@ pub struct Track {
     pub href: String,
     pub popularity: i32,
     #[serde(rename = "type")]
-    #[serde(alias ="object_type")]
+    #[serde(alias = "object_type")]
     pub object_type: String,
 }
 
@@ -200,8 +199,8 @@ pub struct AlbumTrackDetail {
     pub id: String,
     pub duration_ms: u128,
     pub href: String,
-    #[serde(rename="type")]
-    #[serde(alias ="object_type")]
+    #[serde(rename = "type")]
+    #[serde(alias = "object_type")]
     pub object_type: String,
 }
 
@@ -220,33 +219,31 @@ pub struct SearchResult {
     pub tracks: SearchResultTracks,
     pub artists: SearchResultArtists,
     pub albums: SearchResultAlbums,
-    pub playlists: SearchResultPlaylists
+    pub playlists: SearchResultPlaylists,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SearchResultPlaylists {
-    pub items: Vec<SimpleifiedPlaylistItem> 
+    pub items: Vec<SimpleifiedPlaylistItem>,
 }
-
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SearchResultAlbums {
-    pub items: Vec<AlbumItem> 
+    pub items: Vec<AlbumItem>,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SearchResultArtists {
-    pub items: Vec<Artist> 
+    pub items: Vec<Artist>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SearchResultTracks {
-    pub items: Vec<Track> 
+    pub items: Vec<Track>,
 }
 
 impl AlbumTrackItemResponse {
     pub fn track_details(&self) -> Vec<Track> {
-        self
-            .items
+        self.items
             .iter()
             .map(|d| {
                 let d = d.clone();
@@ -267,10 +264,6 @@ impl AlbumTrackItemResponse {
 
 impl PlaylistTrackItemsResponse {
     pub fn track_details(&self) -> Vec<Track> {
-        self.items.iter().map(|data| {
-            data.clone().track
-        }).collect()
+        self.items.iter().map(|data| data.clone().track).collect()
     }
 }
-
-
